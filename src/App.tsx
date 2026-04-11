@@ -25,7 +25,7 @@ import MemberDashboard from "@/pages/member/MemberDashboard";
 import MemberNews from "@/pages/member/MemberNews";
 import MemberEvents from "@/pages/member/MemberEvents";
 import MemberDocuments from "@/pages/member/MemberDocuments";
-import MemberChat from "@/pages/admin/Chat";
+import MemberChat from "@/pages/member/MemberChat";
 import MemberNotifications from "@/pages/member/MemberNotifications";
 import NotFound from "@/pages/NotFound";
 
