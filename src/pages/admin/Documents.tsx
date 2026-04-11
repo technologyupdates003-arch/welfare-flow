@@ -1,14 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, Eye, FileText } from "lucide-react";
+import { Eye, FileText, Check, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
 export default function AdminDocuments() {
+  const queryClient = useQueryClient();
+
   const { data: documents, isLoading } = useQuery({
     queryKey: ["admin-documents"],
     queryFn: async () => {
@@ -19,6 +21,18 @@ export default function AdminDocuments() {
       if (error) throw error;
       return data || [];
     },
+  });
+
+  const updateStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase.from("documents").update({ status }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_, { status }) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-documents"] });
+      toast.success(`Document ${status}`);
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const viewFile = async (fileUrl: string) => {
@@ -35,7 +49,8 @@ export default function AdminDocuments() {
     return map[t] || t;
   };
 
-  const statusColor = (s: string) => s === "approved" ? "default" : s === "rejected" ? "destructive" : "secondary";
+  const statusColor = (s: string): "default" | "destructive" | "secondary" =>
+    s === "approved" ? "default" : s === "rejected" ? "destructive" : "secondary";
 
   return (
     <div className="space-y-6">
@@ -66,15 +81,44 @@ export default function AdminDocuments() {
                       <div className="text-sm font-medium">{doc.members?.name}</div>
                       <div className="text-xs text-muted-foreground">{doc.members?.phone}</div>
                     </TableCell>
-                    <TableCell className="text-sm flex items-center gap-2"><FileText className="h-4 w-4 text-muted-foreground" />{doc.file_name}</TableCell>
+                    <TableCell className="text-sm">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        {doc.file_name}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-sm">{typeLabel(doc.file_type)}</TableCell>
                     <TableCell><Badge variant={statusColor(doc.status)}>{doc.status}</Badge></TableCell>
                     <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{doc.notes || "-"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{format(new Date(doc.created_at), "dd MMM yyyy")}</TableCell>
                     <TableCell>
-                      <Button variant="outline" size="sm" onClick={() => viewFile(doc.file_url)}>
-                        <Eye className="h-4 w-4 mr-1" /> View
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button variant="outline" size="sm" onClick={() => viewFile(doc.file_url)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {doc.status === "pending" && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                              onClick={() => updateStatus.mutate({ id: doc.id, status: "approved" })}
+                              disabled={updateStatus.isPending}
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive hover:bg-destructive/10"
+                              onClick={() => updateStatus.mutate({ id: doc.id, status: "rejected" })}
+                              disabled={updateStatus.isPending}
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
