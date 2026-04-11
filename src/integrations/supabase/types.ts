@@ -64,6 +64,62 @@ export type Database = {
           },
         ]
       }
+      conversation_participants: {
+        Row: {
+          conversation_id: string
+          id: string
+          joined_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          id?: string
+          joined_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          id?: string
+          joined_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_participants_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          name?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
           created_at: string
@@ -203,34 +259,86 @@ export type Database = {
         }
         Relationships: []
       }
+      message_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
+          conversation_id: string | null
           created_at: string
           id: string
           member_id: string | null
+          reply_to_id: string | null
           user_id: string
         }
         Insert: {
           content: string
+          conversation_id?: string | null
           created_at?: string
           id?: string
           member_id?: string | null
+          reply_to_id?: string | null
           user_id: string
         }
         Update: {
           content?: string
+          conversation_id?: string | null
           created_at?: string
           id?: string
           member_id?: string | null
+          reply_to_id?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "messages_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
         ]
@@ -451,6 +559,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_presence: {
+        Row: {
+          id: string
+          is_online: boolean
+          last_seen: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          is_online?: boolean
+          last_seen?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          is_online?: boolean
+          last_seen?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
