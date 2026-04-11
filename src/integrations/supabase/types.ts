@@ -14,16 +14,410 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      contributions: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string
+          id: string
+          member_id: string
+          month: number
+          paid_date: string | null
+          payment_id: string | null
+          status: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          due_date: string
+          id?: string
+          member_id: string
+          month: number
+          paid_date?: string | null
+          payment_id?: string | null
+          status?: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string
+          id?: string
+          member_id?: string
+          month?: number
+          paid_date?: string | null
+          payment_id?: string | null
+          status?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contributions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      members: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          member_id: string | null
+          name: string
+          phone: string
+          total_contributions: number
+          total_penalties: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          member_id?: string | null
+          name: string
+          phone: string
+          total_contributions?: number
+          total_penalties?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          member_id?: string | null
+          name?: string
+          phone?: string
+          total_contributions?: number
+          total_penalties?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          member_id: string | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          member_id?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          member_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      news: {
+        Row: {
+          author_id: string
+          content: string
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          content: string
+          created_at?: string
+          id?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          matched: boolean
+          member_id: string | null
+          raw_message: string | null
+          received_at: string
+          source: string
+          transaction_ref: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          matched?: boolean
+          member_id?: string | null
+          raw_message?: string | null
+          received_at?: string
+          source?: string
+          transaction_ref?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          matched?: boolean
+          member_id?: string | null
+          raw_message?: string | null
+          received_at?: string
+          source?: string
+          transaction_ref?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      penalties: {
+        Row: {
+          amount: number
+          contribution_id: string | null
+          created_at: string
+          id: string
+          is_paid: boolean
+          member_id: string
+          reason: string
+        }
+        Insert: {
+          amount: number
+          contribution_id?: string | null
+          created_at?: string
+          id?: string
+          is_paid?: boolean
+          member_id: string
+          reason?: string
+        }
+        Update: {
+          amount?: number
+          contribution_id?: string | null
+          created_at?: string
+          id?: string
+          is_paid?: boolean
+          member_id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "penalties_contribution_id_fkey"
+            columns: ["contribution_id"]
+            isOneToOne: false
+            referencedRelation: "contributions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "penalties_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sms_logs: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          provider_ref: string | null
+          recipient_phone: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          provider_ref?: string | null
+          recipient_phone: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          provider_ref?: string | null
+          recipient_phone?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      unmatched_payments: {
+        Row: {
+          created_at: string
+          extracted_amount: number | null
+          extracted_phone: string | null
+          id: string
+          payment_id: string
+          raw_message: string | null
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          extracted_amount?: number | null
+          extracted_phone?: string | null
+          id?: string
+          payment_id: string
+          raw_message?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          extracted_amount?: number | null
+          extracted_phone?: string | null
+          id?: string
+          payment_id?: string
+          raw_message?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unmatched_payments_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      welfare_settings: {
+        Row: {
+          contribution_due_day: number
+          created_at: string
+          id: string
+          monthly_contribution_amount: number
+          name: string
+          penalty_amount: number
+          penalty_grace_days: number
+          updated_at: string
+        }
+        Insert: {
+          contribution_due_day?: number
+          created_at?: string
+          id?: string
+          monthly_contribution_amount?: number
+          name?: string
+          penalty_amount?: number
+          penalty_grace_days?: number
+          updated_at?: string
+        }
+        Update: {
+          contribution_due_day?: number
+          created_at?: string
+          id?: string
+          monthly_contribution_amount?: number
+          name?: string
+          penalty_amount?: number
+          penalty_grace_days?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "member"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +544,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "member"],
+    },
   },
 } as const
