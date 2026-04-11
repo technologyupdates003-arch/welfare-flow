@@ -19,6 +19,7 @@ import AdminDocuments from "@/pages/admin/Documents";
 import AdminNews from "@/pages/admin/News";
 import AdminChat from "@/pages/admin/Chat";
 import AdminNotifications from "@/pages/admin/Notifications";
+import AdminSettings from "@/pages/admin/Settings";
 import MemberDashboard from "@/pages/member/MemberDashboard";
 import MemberNews from "@/pages/member/MemberNews";
 import MemberEvents from "@/pages/member/MemberEvents";
@@ -57,6 +58,7 @@ function AppRoutes() {
         <Route path="/admin/news" element={<AdminLayout><AdminNews /></AdminLayout>} />
         <Route path="/admin/chat" element={<AdminLayout><AdminChat /></AdminLayout>} />
         <Route path="/admin/notifications" element={<AdminLayout><AdminNotifications /></AdminLayout>} />
+        <Route path="/admin/settings" element={<AdminLayout><AdminSettings /></AdminLayout>} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
     );
