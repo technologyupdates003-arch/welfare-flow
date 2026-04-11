@@ -8,6 +8,8 @@ import {
   AlertTriangle, CreditCard, Send, Calendar, FileText, Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import FloatingChatBubble from "@/components/chat/FloatingChatBubble";
+import AIAssistant from "@/components/chat/AIAssistant";
 
 const navItems = [
   { to: "/admin", icon: LayoutDashboard, label: "Dashboard" },
@@ -87,6 +89,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           {children}
         </div>
       </main>
+      <FloatingChatBubble />
+      <AIAssistant />
     </div>
   );
 }
