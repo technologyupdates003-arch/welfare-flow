@@ -19,6 +19,7 @@ import AdminDocuments from "@/pages/admin/Documents";
 import AdminNews from "@/pages/admin/News";
 import AdminChat from "@/pages/admin/Chat";
 import AdminNotifications from "@/pages/admin/Notifications";
+import AdminSettings from "@/pages/admin/Settings";
 import MemberDashboard from "@/pages/member/MemberDashboard";
 import MemberNews from "@/pages/member/MemberNews";
 import MemberEvents from "@/pages/member/MemberEvents";
