@@ -1,0 +1,194 @@
+import { useState, useRef, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Send, X } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import MessageBubble from "./MessageBubble";
+import EmojiPicker from "./EmojiPicker";
+import { format } from "date-fns";
+
+interface ChatWindowProps {
+  conversationId: string | null; // null or "group" means general group chat
+}
+
+export default function ChatWindow({ conversationId }: ChatWindowProps) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [message, setMessage] = useState("");
+  const [replyTo, setReplyTo] = useState<any>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const isGroup = !conversationId || conversationId === "group";
+
+  const queryKey = ["chat-messages", conversationId || "group"];
+
+  const { data: messages } = useQuery({
+    queryKey,
+    queryFn: async () => {
+      let q = supabase
+        .from("messages")
+        .select("*, members(name), message_reactions(*)")
+        .order("created_at", { ascending: true })
+        .limit(200);
+
+      if (isGroup) {
+        q = q.is("conversation_id", null);
+      } else {
+        q = q.eq("conversation_id", conversationId!);
+      }
+
+      const { data } = await q;
+
+      // Fetch reply-to messages
+      if (data) {
+        const replyIds = data.filter((m: any) => m.reply_to_id).map((m: any) => m.reply_to_id);
+        if (replyIds.length > 0) {
+          const { data: replies } = await supabase
+            .from("messages")
+            .select("id, content, members(name), user_id")
+            .in("id", replyIds);
+          const replyMap = new Map((replies || []).map((r: any) => [r.id, r]));
+          return data.map((m: any) => ({
+            ...m,
+            replyMessage: m.reply_to_id ? replyMap.get(m.reply_to_id) : null,
+          }));
+        }
+      }
+
+      return data || [];
+    },
+  });
+
+  const { data: presenceData } = useQuery({
+    queryKey: ["presence"],
+    queryFn: async () => {
+      const { data } = await supabase.from("user_presence").select("user_id, is_online");
+      return new Map((data || []).map((p: any) => [p.user_id, p.is_online]));
+    },
+    refetchInterval: 10000,
+  });
+
+  // Realtime subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel(`chat-${conversationId || "group"}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, () => {
+        queryClient.invalidateQueries({ queryKey });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "message_reactions" }, () => {
+        queryClient.invalidateQueries({ queryKey });
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [conversationId, queryClient]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const sendMessage = useMutation({
+    mutationFn: async () => {
+      const { data: member } = await supabase.from("members").select("id").eq("user_id", user!.id).maybeSingle();
+      const { error } = await supabase.from("messages").insert({
+        user_id: user!.id,
+        member_id: member?.id || null,
+        content: message,
+        conversation_id: isGroup ? null : conversationId,
+        reply_to_id: replyTo?.id || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setMessage("");
+      setReplyTo(null);
+      queryClient.invalidateQueries({ queryKey });
+    },
+  });
+
+  const toggleReaction = useMutation({
+    mutationFn: async ({ messageId, emoji }: { messageId: string; emoji: string }) => {
+      const { data: existing } = await supabase
+        .from("message_reactions")
+        .select("id")
+        .eq("message_id", messageId)
+        .eq("user_id", user!.id)
+        .eq("emoji", emoji)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase.from("message_reactions").delete().eq("id", existing.id);
+      } else {
+        await supabase.from("message_reactions").insert({ message_id: messageId, user_id: user!.id, emoji });
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+  });
+
+  const groupReactions = (reactions: any[]) => {
+    const map = new Map<string, { count: number; reacted: boolean }>();
+    reactions?.forEach((r: any) => {
+      const existing = map.get(r.emoji) || { count: 0, reacted: false };
+      existing.count++;
+      if (r.user_id === user?.id) existing.reacted = true;
+      map.set(r.emoji, existing);
+    });
+    return Array.from(map.entries()).map(([emoji, data]) => ({ emoji, ...data }));
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <ScrollArea className="flex-1 p-4">
+        <div className="flex flex-col gap-1">
+          {messages?.map((m: any) => (
+            <MessageBubble
+              key={m.id}
+              content={m.content}
+              senderName={m.members?.name || "Admin"}
+              isOwn={m.user_id === user?.id}
+              time={format(new Date(m.created_at), "HH:mm")}
+              reactions={groupReactions(m.message_reactions)}
+              replyTo={
+                m.replyMessage
+                  ? { senderName: m.replyMessage.members?.name || "Admin", content: m.replyMessage.content }
+                  : null
+              }
+              onReply={() => setReplyTo(m)}
+              onReact={(emoji) => toggleReaction.mutate({ messageId: m.id, emoji })}
+              isOnline={presenceData?.get(m.user_id) ?? false}
+            />
+          ))}
+          <div ref={bottomRef} />
+        </div>
+      </ScrollArea>
+
+      {replyTo && (
+        <div className="px-4 py-2 border-t border-border bg-muted/30 flex items-center gap-2">
+          <div className="flex-1 text-xs truncate">
+            <span className="font-semibold">Replying to {replyTo.members?.name || "Admin"}: </span>
+            <span className="text-muted-foreground">{replyTo.content}</span>
+          </div>
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setReplyTo(null)}>
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
+
+      <div className="p-3 border-t border-border flex items-center gap-2 bg-card">
+        <EmojiPicker onSelect={(e) => setMessage((prev) => prev + e)} />
+        <Input
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Type a message..."
+          className="flex-1 rounded-full bg-muted border-0"
+          onKeyDown={(e) => e.key === "Enter" && message.trim() && sendMessage.mutate()}
+        />
+        <Button size="icon" className="rounded-full h-9 w-9" onClick={() => message.trim() && sendMessage.mutate()} disabled={sendMessage.isPending}>
+          <Send className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
