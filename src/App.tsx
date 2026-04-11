@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import InstallBanner from "@/components/InstallBanner";
 import Login from "@/pages/Login";
 import AdminLayout from "@/components/layout/AdminLayout";
 import MemberLayout from "@/components/layout/MemberLayout";
@@ -24,7 +25,7 @@ import MemberDashboard from "@/pages/member/MemberDashboard";
 import MemberNews from "@/pages/member/MemberNews";
 import MemberEvents from "@/pages/member/MemberEvents";
 import MemberDocuments from "@/pages/member/MemberDocuments";
-import MemberChat from "@/pages/admin/Chat";
+import MemberChat from "@/pages/member/MemberChat";
 import MemberNotifications from "@/pages/member/MemberNotifications";
 import NotFound from "@/pages/NotFound";
 
@@ -84,6 +85,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <InstallBanner />
           <AppRoutes />
         </AuthProvider>
       </BrowserRouter>
