@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard, Users, DollarSign, FileSpreadsheet,
   MessageSquare, Newspaper, Bell, LogOut, Menu, X,
-  AlertTriangle, CreditCard, Send, Calendar, FileText
+  AlertTriangle, CreditCard, Send, Calendar, FileText, Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +22,7 @@ const navItems = [
   { to: "/admin/news", icon: Newspaper, label: "News" },
   { to: "/admin/chat", icon: MessageSquare, label: "Chat" },
   { to: "/admin/notifications", icon: Bell, label: "Notifications" },
+  { to: "/admin/settings", icon: Settings, label: "Settings" },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
