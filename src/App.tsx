@@ -14,11 +14,15 @@ import ExcelImport from "@/pages/admin/ExcelImport";
 import Payments from "@/pages/admin/Payments";
 import UnmatchedPayments from "@/pages/admin/UnmatchedPayments";
 import BulkSms from "@/pages/admin/BulkSms";
+import AdminEvents from "@/pages/admin/Events";
+import AdminDocuments from "@/pages/admin/Documents";
 import AdminNews from "@/pages/admin/News";
 import AdminChat from "@/pages/admin/Chat";
 import AdminNotifications from "@/pages/admin/Notifications";
 import MemberDashboard from "@/pages/member/MemberDashboard";
 import MemberNews from "@/pages/member/MemberNews";
+import MemberEvents from "@/pages/member/MemberEvents";
+import MemberDocuments from "@/pages/member/MemberDocuments";
 import MemberChat from "@/pages/admin/Chat";
 import MemberNotifications from "@/pages/member/MemberNotifications";
 import NotFound from "@/pages/NotFound";
@@ -48,6 +52,8 @@ function AppRoutes() {
         <Route path="/admin/payments" element={<AdminLayout><Payments /></AdminLayout>} />
         <Route path="/admin/unmatched" element={<AdminLayout><UnmatchedPayments /></AdminLayout>} />
         <Route path="/admin/sms" element={<AdminLayout><BulkSms /></AdminLayout>} />
+        <Route path="/admin/events" element={<AdminLayout><AdminEvents /></AdminLayout>} />
+        <Route path="/admin/documents" element={<AdminLayout><AdminDocuments /></AdminLayout>} />
         <Route path="/admin/news" element={<AdminLayout><AdminNews /></AdminLayout>} />
         <Route path="/admin/chat" element={<AdminLayout><AdminChat /></AdminLayout>} />
         <Route path="/admin/notifications" element={<AdminLayout><AdminNotifications /></AdminLayout>} />
@@ -59,6 +65,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/member" element={<MemberLayout><MemberDashboard /></MemberLayout>} />
+      <Route path="/member/events" element={<MemberLayout><MemberEvents /></MemberLayout>} />
+      <Route path="/member/documents" element={<MemberLayout><MemberDocuments /></MemberLayout>} />
       <Route path="/member/news" element={<MemberLayout><MemberNews /></MemberLayout>} />
       <Route path="/member/chat" element={<MemberLayout><MemberChat /></MemberLayout>} />
       <Route path="/member/notifications" element={<MemberLayout><MemberNotifications /></MemberLayout>} />

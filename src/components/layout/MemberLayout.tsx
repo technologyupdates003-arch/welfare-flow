@@ -2,11 +2,13 @@ import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, MessageSquare, Newspaper, Bell, LogOut } from "lucide-react";
+import { LayoutDashboard, MessageSquare, Newspaper, Bell, LogOut, Calendar, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/member", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/member/events", icon: Calendar, label: "Events" },
+  { to: "/member/documents", icon: FileText, label: "Docs" },
   { to: "/member/news", icon: Newspaper, label: "News" },
   { to: "/member/chat", icon: MessageSquare, label: "Chat" },
   { to: "/member/notifications", icon: Bell, label: "Notifications" },

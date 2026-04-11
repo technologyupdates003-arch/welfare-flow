@@ -64,6 +64,106 @@ export type Database = {
           },
         ]
       }
+      documents: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_type: string
+          file_url: string
+          id: string
+          member_id: string
+          notes: string | null
+          status: string
+          updated_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_type?: string
+          file_url: string
+          id?: string
+          member_id: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_type?: string
+          file_url?: string
+          id?: string
+          member_id?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          contribution_amount: number
+          created_at: string
+          created_by: string
+          departed_name: string | null
+          description: string | null
+          event_type: string
+          id: string
+          related_member_id: string | null
+          relationship: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          contribution_amount?: number
+          created_at?: string
+          created_by: string
+          departed_name?: string | null
+          description?: string | null
+          event_type?: string
+          id?: string
+          related_member_id?: string | null
+          relationship?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          contribution_amount?: number
+          created_at?: string
+          created_by?: string
+          departed_name?: string | null
+          description?: string | null
+          event_type?: string
+          id?: string
+          related_member_id?: string | null
+          relationship?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_related_member_id_fkey"
+            columns: ["related_member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           created_at: string
