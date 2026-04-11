@@ -58,6 +58,7 @@ function AppRoutes() {
         <Route path="/admin/news" element={<AdminLayout><AdminNews /></AdminLayout>} />
         <Route path="/admin/chat" element={<AdminLayout><AdminChat /></AdminLayout>} />
         <Route path="/admin/notifications" element={<AdminLayout><AdminNotifications /></AdminLayout>} />
+        <Route path="/admin/settings" element={<AdminLayout><AdminSettings /></AdminLayout>} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
     );
