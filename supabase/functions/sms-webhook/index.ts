@@ -5,6 +5,23 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Trusted bank senders
+const TRUSTED_SENDERS = ["KCB", "EQUITY", "COOPBANK", "KCBBANK", "EQUITYBANK", "CO-OPBANK", "MPESA", "M-PESA"];
+
+// Rate limiting: max 60 requests per minute per sender
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function isRateLimited(sender: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(sender);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(sender, { count: 1, resetAt: now + 60000 });
+    return false;
+  }
+  entry.count++;
+  return entry.count > 60;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -16,6 +33,24 @@ Deno.serve(async (req) => {
     if (!message) {
       return new Response(JSON.stringify({ error: "Missing message" }), {
         status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Validate sender
+    const senderUpper = (sender || "").toUpperCase().trim();
+    const isTrusted = TRUSTED_SENDERS.some(s => senderUpper.includes(s));
+    if (!isTrusted && sender) {
+      return new Response(JSON.stringify({ error: "Untrusted sender", sender }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Rate limiting
+    if (isRateLimited(senderUpper)) {
+      return new Response(JSON.stringify({ error: "Rate limited" }), {
+        status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -47,6 +82,20 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ status: "ignored", reason: "No amount found" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Duplicate detection: check if same transaction_ref already processed
+    if (transactionRef) {
+      const { data: existingPayment } = await supabase
+        .from("payments")
+        .select("id")
+        .eq("transaction_ref", transactionRef)
+        .maybeSingle();
+      if (existingPayment) {
+        return new Response(JSON.stringify({ status: "duplicate", transaction_ref: transactionRef }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Create payment record
@@ -135,7 +184,6 @@ Deno.serve(async (req) => {
     }
 
     if (!matched) {
-      // Add to unmatched queue
       await supabase.from("unmatched_payments").insert({
         payment_id: payment.id,
         raw_message: message,
