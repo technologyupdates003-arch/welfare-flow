@@ -24,7 +24,6 @@ export default function AIAssistant() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Show greeting popup on first load
   useEffect(() => {
     const timer = setTimeout(() => setShowGreeting(false), 8000);
     return () => clearTimeout(timer);
@@ -100,8 +99,8 @@ export default function AIAssistant() {
     <>
       {/* Greeting tooltip */}
       {showGreeting && !open && (
-        <div className="fixed bottom-24 right-20 z-50 bg-card border border-border rounded-xl shadow-lg p-3 max-w-[240px] animate-fade-in md:bottom-20">
-          <p className="text-sm">👋 Need help? I can assist with announcements, member data, and more!</p>
+        <div className="fixed bottom-24 right-20 z-50 bg-card border border-border rounded-xl shadow-lg p-3 max-w-[220px] animate-fade-in md:bottom-20">
+          <p className="text-xs">👋 Need help? I can assist with announcements, member data, and more!</p>
           <button onClick={() => setShowGreeting(false)} className="absolute -top-2 -right-2 bg-muted rounded-full p-0.5">
             <X className="h-3 w-3" />
           </button>
@@ -116,10 +115,10 @@ export default function AIAssistant() {
         {open ? <X className="h-5 w-5" /> : <Sparkles className="h-5 w-5" />}
       </button>
 
-      {/* AI Panel */}
+      {/* AI Panel - full screen on mobile */}
       {open && (
-        <div className="fixed bottom-36 right-20 z-50 w-[380px] h-[520px] rounded-2xl border border-border bg-background shadow-2xl flex flex-col overflow-hidden animate-scale-in md:bottom-24">
-          <div className="bg-gradient-to-r from-violet-500 to-purple-600 text-white px-4 py-3 flex items-center gap-2">
+        <div className="fixed z-50 flex flex-col overflow-hidden animate-scale-in inset-0 md:inset-auto md:bottom-24 md:right-20 md:w-[380px] md:h-[520px] md:rounded-2xl md:border md:border-border md:shadow-2xl bg-background">
+          <div className="bg-gradient-to-r from-violet-500 to-purple-600 text-white px-4 py-3 flex items-center gap-2 shrink-0">
             <Bot className="h-5 w-5" />
             <h3 className="font-semibold text-sm flex-1">AI Assistant</h3>
             <button onClick={() => setOpen(false)}><X className="h-4 w-4" /></button>
