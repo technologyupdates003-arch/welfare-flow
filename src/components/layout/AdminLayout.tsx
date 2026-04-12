@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard, Users, DollarSign, FileSpreadsheet,
-  MessageSquare, Newspaper, Bell, LogOut, Menu, X,
+  Newspaper, Bell, LogOut, Menu, X,
   AlertTriangle, CreditCard, Send, Calendar, FileText, Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,7 +22,7 @@ const navItems = [
   { to: "/admin/events", icon: Calendar, label: "Events" },
   { to: "/admin/documents", icon: FileText, label: "Documents" },
   { to: "/admin/news", icon: Newspaper, label: "News" },
-  { to: "/admin/chat", icon: MessageSquare, label: "Chat" },
+  
   { to: "/admin/notifications", icon: Bell, label: "Notifications" },
   { to: "/admin/settings", icon: Settings, label: "Settings" },
 ];

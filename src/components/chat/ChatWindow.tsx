@@ -9,12 +9,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import MessageBubble from "./MessageBubble";
 import EmojiPicker from "./EmojiPicker";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface ChatWindowProps {
-  conversationId: string | null; // null or "group" means general group chat
+  conversationId: string | null;
+  darkMode?: boolean;
 }
 
-export default function ChatWindow({ conversationId }: ChatWindowProps) {
+export default function ChatWindow({ conversationId, darkMode = false }: ChatWindowProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
@@ -41,7 +43,6 @@ export default function ChatWindow({ conversationId }: ChatWindowProps) {
 
       const { data } = await q;
 
-      // Fetch reply-to messages
       if (data) {
         const replyIds = data.filter((m: any) => m.reply_to_id).map((m: any) => m.reply_to_id);
         if (replyIds.length > 0) {
@@ -70,7 +71,6 @@ export default function ChatWindow({ conversationId }: ChatWindowProps) {
     refetchInterval: 10000,
   });
 
-  // Realtime subscription
   useEffect(() => {
     const channel = supabase
       .channel(`chat-${conversationId || "group"}`)
@@ -140,7 +140,7 @@ export default function ChatWindow({ conversationId }: ChatWindowProps) {
 
   return (
     <div className="flex flex-col h-full">
-      <ScrollArea className="flex-1 p-4">
+      <ScrollArea className="flex-1 p-3">
         <div className="flex flex-col gap-1">
           {messages?.map((m: any) => (
             <MessageBubble
@@ -158,6 +158,7 @@ export default function ChatWindow({ conversationId }: ChatWindowProps) {
               onReply={() => setReplyTo(m)}
               onReact={(emoji) => toggleReaction.mutate({ messageId: m.id, emoji })}
               isOnline={presenceData?.get(m.user_id) ?? false}
+              darkMode={darkMode}
             />
           ))}
           <div ref={bottomRef} />
@@ -165,10 +166,13 @@ export default function ChatWindow({ conversationId }: ChatWindowProps) {
       </ScrollArea>
 
       {replyTo && (
-        <div className="px-4 py-2 border-t border-border bg-muted/30 flex items-center gap-2">
+        <div className={cn(
+          "px-3 py-2 border-t flex items-center gap-2",
+          darkMode ? "bg-[#1F2C34] border-[#2A3942] text-gray-300" : "bg-muted/30 border-border"
+        )}>
           <div className="flex-1 text-xs truncate">
             <span className="font-semibold">Replying to {replyTo.members?.name || "Admin"}: </span>
-            <span className="text-muted-foreground">{replyTo.content}</span>
+            <span className={darkMode ? "text-gray-400" : "text-muted-foreground"}>{replyTo.content}</span>
           </div>
           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setReplyTo(null)}>
             <X className="h-3.5 w-3.5" />
@@ -176,16 +180,30 @@ export default function ChatWindow({ conversationId }: ChatWindowProps) {
         </div>
       )}
 
-      <div className="p-3 border-t border-border flex items-center gap-2 bg-card">
+      <div className={cn(
+        "p-2 border-t flex items-center gap-2",
+        darkMode ? "bg-[#1F2C34] border-[#2A3942]" : "bg-card border-border"
+      )}>
         <EmojiPicker onSelect={(e) => setMessage((prev) => prev + e)} />
         <Input
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Type a message..."
-          className="flex-1 rounded-full bg-muted border-0"
+          className={cn(
+            "flex-1 rounded-full border-0 text-sm h-9",
+            darkMode ? "bg-[#2A3942] text-white placeholder:text-gray-400" : "bg-muted"
+          )}
           onKeyDown={(e) => e.key === "Enter" && message.trim() && sendMessage.mutate()}
         />
-        <Button size="icon" className="rounded-full h-9 w-9" onClick={() => message.trim() && sendMessage.mutate()} disabled={sendMessage.isPending}>
+        <Button
+          size="icon"
+          className={cn(
+            "rounded-full h-9 w-9",
+            darkMode ? "bg-[#00A884] hover:bg-[#00957A]" : ""
+          )}
+          onClick={() => message.trim() && sendMessage.mutate()}
+          disabled={sendMessage.isPending}
+        >
           <Send className="h-4 w-4" />
         </Button>
       </div>
