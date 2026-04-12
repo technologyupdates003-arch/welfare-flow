@@ -1,110 +1,109 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { cn } from "@/lib/utils";
-import { Users, User, MessageSquare, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Users, MessageCircle, UserPlus } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ConversationListProps {
   activeId: string | null;
   onSelect: (id: string) => void;
   onNewChat: () => void;
   onGroupChat: () => void;
+  darkMode?: boolean;
 }
 
-export default function ConversationList({ activeId, onSelect, onNewChat, onGroupChat }: ConversationListProps) {
+export default function ConversationList({ activeId, onSelect, onNewChat, onGroupChat, darkMode = false }: ConversationListProps) {
   const { user } = useAuth();
 
   const { data: conversations } = useQuery({
     queryKey: ["conversations", user?.id],
     queryFn: async () => {
-      const { data } = await supabase
+      if (!user) return [];
+      const { data: participations } = await supabase
         .from("conversation_participants")
-        .select("conversation_id, conversations(id, type, name, updated_at)")
-        .eq("user_id", user!.id)
-        .order("joined_at", { ascending: false });
-
-      if (!data) return [];
-
-      const convos = data
-        .map((d: any) => d.conversations)
-        .filter(Boolean)
-        .sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-
-      // Get participant names for private chats
-      const enriched = await Promise.all(
-        convos.map(async (c: any) => {
-          if (c.type === "private") {
-            const { data: parts } = await supabase
-              .from("conversation_participants")
-              .select("user_id")
-              .eq("conversation_id", c.id)
-              .neq("user_id", user!.id);
-            if (parts?.[0]) {
-              const { data: member } = await supabase
-                .from("members")
-                .select("name")
-                .eq("user_id", parts[0].user_id)
-                .maybeSingle();
-              return { ...c, displayName: member?.name || "Admin" };
-            }
-          }
-          return { ...c, displayName: c.name || "Group Chat" };
-        })
-      );
-
-      return enriched;
+        .select("conversation_id")
+        .eq("user_id", user.id);
+      const ids = (participations || []).map(p => p.conversation_id);
+      if (ids.length === 0) return [];
+      const { data } = await supabase
+        .from("conversations")
+        .select("*")
+        .in("id", ids)
+        .order("updated_at", { ascending: false });
+      return data || [];
     },
     enabled: !!user,
-    refetchInterval: 5000,
   });
 
+  const { data: presenceData } = useQuery({
+    queryKey: ["presence"],
+    queryFn: async () => {
+      const { data } = await supabase.from("user_presence").select("user_id, is_online");
+      return new Map((data || []).map((p: any) => [p.user_id, p.is_online]));
+    },
+    refetchInterval: 10000,
+  });
+
+  const onlineCount = presenceData ? Array.from(presenceData.values()).filter(Boolean).length : 0;
+
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-3 border-b border-border flex items-center justify-between">
-        <h3 className="font-semibold text-sm">Chats</h3>
-        <div className="flex gap-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onNewChat} title="New private chat">
-            <User className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onGroupChat} title="Group chat">
-            <Users className="h-4 w-4" />
-          </Button>
-        </div>
+    <div className={cn("flex flex-col h-full", darkMode ? "text-gray-100" : "")}>
+      <div className={cn(
+        "p-3 flex gap-2 border-b",
+        darkMode ? "border-[#2A3942]" : "border-border"
+      )}>
+        <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={onNewChat}>
+          <UserPlus className="h-3.5 w-3.5 mr-1" /> New Chat
+        </Button>
+        <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={onGroupChat}>
+          <Users className="h-3.5 w-3.5 mr-1" /> New Group
+        </Button>
       </div>
+
       <ScrollArea className="flex-1">
-        {/* Group chat entry */}
         <button
           onClick={() => onSelect("group")}
           className={cn(
-            "w-full text-left px-3 py-3 flex items-center gap-3 hover:bg-accent/50 transition-colors border-b border-border",
-            activeId === "group" && "bg-accent"
+            "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors border-b",
+            darkMode ? "border-[#2A3942] hover:bg-[#2A3942]" : "border-border hover:bg-muted/50",
+            activeId === "group" && (darkMode ? "bg-[#2A3942]" : "bg-muted")
           )}
         >
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <MessageSquare className="h-5 w-5 text-primary" />
+          <div className={cn(
+            "h-10 w-10 rounded-full flex items-center justify-center shrink-0",
+            darkMode ? "bg-[#00A884]" : "bg-primary"
+          )}>
+            <Users className="h-5 w-5 text-white" />
           </div>
-          <div>
-            <p className="text-sm font-medium">General Group</p>
-            <p className="text-xs text-muted-foreground">Everyone</p>
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-sm">Group Chat</p>
+            <p className={cn("text-xs", darkMode ? "text-gray-400" : "text-muted-foreground")}>
+              {onlineCount} online
+            </p>
           </div>
         </button>
+
         {conversations?.map((c: any) => (
           <button
             key={c.id}
             onClick={() => onSelect(c.id)}
             className={cn(
-              "w-full text-left px-3 py-3 flex items-center gap-3 hover:bg-accent/50 transition-colors border-b border-border",
-              activeId === c.id && "bg-accent"
+              "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors border-b",
+              darkMode ? "border-[#2A3942] hover:bg-[#2A3942]" : "border-border hover:bg-muted/50",
+              activeId === c.id && (darkMode ? "bg-[#2A3942]" : "bg-muted")
             )}
           >
-            <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center">
-              {c.type === "group" ? <Users className="h-5 w-5" /> : <User className="h-5 w-5" />}
+            <div className={cn(
+              "h-10 w-10 rounded-full flex items-center justify-center shrink-0",
+              darkMode ? "bg-[#2A3942]" : "bg-secondary"
+            )}>
+              {c.type === "group" ? <Users className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium truncate">{c.displayName}</p>
-              <p className="text-xs text-muted-foreground">{c.type}</p>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-sm truncate">{c.name || "Private Chat"}</p>
+              <p className={cn("text-xs", darkMode ? "text-gray-400" : "text-muted-foreground")}>{c.type}</p>
             </div>
           </button>
         ))}
