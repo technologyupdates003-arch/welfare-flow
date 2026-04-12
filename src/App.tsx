@@ -57,7 +57,7 @@ function AppRoutes() {
         <Route path="/admin/events" element={<AdminLayout><AdminEvents /></AdminLayout>} />
         <Route path="/admin/documents" element={<AdminLayout><AdminDocuments /></AdminLayout>} />
         <Route path="/admin/news" element={<AdminLayout><AdminNews /></AdminLayout>} />
-        <Route path="/admin/chat" element={<AdminLayout><AdminChat /></AdminLayout>} />
+        
         <Route path="/admin/notifications" element={<AdminLayout><AdminNotifications /></AdminLayout>} />
         <Route path="/admin/settings" element={<AdminLayout><AdminSettings /></AdminLayout>} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
@@ -71,7 +71,7 @@ function AppRoutes() {
       <Route path="/member/events" element={<MemberLayout><MemberEvents /></MemberLayout>} />
       <Route path="/member/documents" element={<MemberLayout><MemberDocuments /></MemberLayout>} />
       <Route path="/member/news" element={<MemberLayout><MemberNews /></MemberLayout>} />
-      <Route path="/member/chat" element={<MemberLayout><MemberChat /></MemberLayout>} />
+      
       <Route path="/member/notifications" element={<MemberLayout><MemberNotifications /></MemberLayout>} />
       <Route path="*" element={<Navigate to="/member" replace />} />
     </Routes>
