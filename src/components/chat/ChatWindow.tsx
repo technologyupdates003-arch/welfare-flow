@@ -23,7 +23,6 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
   const [replyTo, setReplyTo] = useState<any>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isGroup = !conversationId || conversationId === "group";
-
   const queryKey = ["chat-messages", conversationId || "group"];
 
   const { data: messages } = useQuery({
@@ -31,34 +30,26 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
     queryFn: async () => {
       let q = supabase
         .from("messages")
-        .select("*, members(name), message_reactions(*)")
+        .select("*, members(name, profile_picture_url), message_reactions(*)")
         .order("created_at", { ascending: true })
         .limit(200);
 
-      if (isGroup) {
-        q = q.is("conversation_id", null);
-      } else {
-        q = q.eq("conversation_id", conversationId!);
-      }
+      if (isGroup) q = q.is("conversation_id", null);
+      else q = q.eq("conversation_id", conversationId!);
 
       const { data } = await q;
+      if (!data) return [];
 
-      if (data) {
-        const replyIds = data.filter((m: any) => m.reply_to_id).map((m: any) => m.reply_to_id);
-        if (replyIds.length > 0) {
-          const { data: replies } = await supabase
-            .from("messages")
-            .select("id, content, members(name), user_id")
-            .in("id", replyIds);
-          const replyMap = new Map((replies || []).map((r: any) => [r.id, r]));
-          return data.map((m: any) => ({
-            ...m,
-            replyMessage: m.reply_to_id ? replyMap.get(m.reply_to_id) : null,
-          }));
-        }
+      const replyIds = data.filter((m: any) => m.reply_to_id).map((m: any) => m.reply_to_id);
+      if (replyIds.length > 0) {
+        const { data: replies } = await supabase
+          .from("messages")
+          .select("id, content, members(name), user_id")
+          .in("id", replyIds);
+        const replyMap = new Map((replies || []).map((r: any) => [r.id, r]));
+        return data.map((m: any) => ({ ...m, replyMessage: m.reply_to_id ? replyMap.get(m.reply_to_id) : null }));
       }
-
-      return data || [];
+      return data;
     },
   });
 
@@ -71,6 +62,30 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
     refetchInterval: 10000,
   });
 
+  // Mark messages as read when opening chat
+  useEffect(() => {
+    if (!user || !messages) return;
+    const unread = messages.filter((m: any) => m.user_id !== user.id && m.status !== "read");
+    if (unread.length === 0) return;
+
+    const ids = unread.map((m: any) => m.id);
+    supabase.from("messages").update({ status: "read" }).in("id", ids).then(() => {
+      queryClient.invalidateQueries({ queryKey });
+    });
+  }, [messages, user]);
+
+  // Mark delivered on receive
+  useEffect(() => {
+    if (!user || !messages) return;
+    const delivered = messages.filter((m: any) => m.user_id !== user.id && m.status === "sent");
+    if (delivered.length === 0) return;
+
+    const ids = delivered.map((m: any) => m.id);
+    supabase.from("messages").update({ status: "delivered" }).in("id", ids).then(() => {
+      queryClient.invalidateQueries({ queryKey });
+    });
+  }, [messages, user]);
+
   useEffect(() => {
     const channel = supabase
       .channel(`chat-${conversationId || "group"}`)
@@ -81,7 +96,6 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
         queryClient.invalidateQueries({ queryKey });
       })
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, [conversationId, queryClient]);
 
@@ -98,6 +112,7 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
         content: message,
         conversation_id: isGroup ? null : conversationId,
         reply_to_id: replyTo?.id || null,
+        status: "sent",
       });
       if (error) throw error;
     },
@@ -111,18 +126,10 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
   const toggleReaction = useMutation({
     mutationFn: async ({ messageId, emoji }: { messageId: string; emoji: string }) => {
       const { data: existing } = await supabase
-        .from("message_reactions")
-        .select("id")
-        .eq("message_id", messageId)
-        .eq("user_id", user!.id)
-        .eq("emoji", emoji)
-        .maybeSingle();
-
-      if (existing) {
-        await supabase.from("message_reactions").delete().eq("id", existing.id);
-      } else {
-        await supabase.from("message_reactions").insert({ message_id: messageId, user_id: user!.id, emoji });
-      }
+        .from("message_reactions").select("id")
+        .eq("message_id", messageId).eq("user_id", user!.id).eq("emoji", emoji).maybeSingle();
+      if (existing) await supabase.from("message_reactions").delete().eq("id", existing.id);
+      else await supabase.from("message_reactions").insert({ message_id: messageId, user_id: user!.id, emoji });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   });
@@ -150,15 +157,13 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
               isOwn={m.user_id === user?.id}
               time={format(new Date(m.created_at), "HH:mm")}
               reactions={groupReactions(m.message_reactions)}
-              replyTo={
-                m.replyMessage
-                  ? { senderName: m.replyMessage.members?.name || "Admin", content: m.replyMessage.content }
-                  : null
-              }
+              replyTo={m.replyMessage ? { senderName: m.replyMessage.members?.name || "Admin", content: m.replyMessage.content } : null}
               onReply={() => setReplyTo(m)}
               onReact={(emoji) => toggleReaction.mutate({ messageId: m.id, emoji })}
               isOnline={presenceData?.get(m.user_id) ?? false}
               darkMode={darkMode}
+              status={m.status}
+              profilePicture={m.members?.profile_picture_url}
             />
           ))}
           <div ref={bottomRef} />
@@ -166,10 +171,7 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
       </ScrollArea>
 
       {replyTo && (
-        <div className={cn(
-          "px-3 py-2 border-t flex items-center gap-2",
-          darkMode ? "bg-[#1F2C34] border-[#2A3942] text-gray-300" : "bg-muted/30 border-border"
-        )}>
+        <div className={cn("px-3 py-2 border-t flex items-center gap-2", darkMode ? "bg-[#1F2C34] border-[#2A3942] text-gray-300" : "bg-muted/30 border-border")}>
           <div className="flex-1 text-xs truncate">
             <span className="font-semibold">Replying to {replyTo.members?.name || "Admin"}: </span>
             <span className={darkMode ? "text-gray-400" : "text-muted-foreground"}>{replyTo.content}</span>
@@ -180,27 +182,18 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
         </div>
       )}
 
-      <div className={cn(
-        "p-2 border-t flex items-center gap-2",
-        darkMode ? "bg-[#1F2C34] border-[#2A3942]" : "bg-card border-border"
-      )}>
+      <div className={cn("p-2 border-t flex items-center gap-2", darkMode ? "bg-[#1F2C34] border-[#2A3942]" : "bg-card border-border")}>
         <EmojiPicker onSelect={(e) => setMessage((prev) => prev + e)} />
         <Input
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Type a message..."
-          className={cn(
-            "flex-1 rounded-full border-0 text-sm h-9",
-            darkMode ? "bg-[#2A3942] text-white placeholder:text-gray-400" : "bg-muted"
-          )}
+          className={cn("flex-1 rounded-full border-0 text-sm h-9", darkMode ? "bg-[#2A3942] text-white placeholder:text-gray-400" : "bg-muted")}
           onKeyDown={(e) => e.key === "Enter" && message.trim() && sendMessage.mutate()}
         />
         <Button
           size="icon"
-          className={cn(
-            "rounded-full h-9 w-9",
-            darkMode ? "bg-[#00A884] hover:bg-[#00957A]" : ""
-          )}
+          className={cn("rounded-full h-9 w-9", darkMode ? "bg-[#00A884] hover:bg-[#00957A]" : "")}
           onClick={() => message.trim() && sendMessage.mutate()}
           disabled={sendMessage.isPending}
         >
