@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Newspaper, Bell, LogOut, Calendar, FileText } from "lucide-react";
+import { LayoutDashboard, Newspaper, Bell, LogOut, Calendar, FileText, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import FloatingChatBubble from "@/components/chat/FloatingChatBubble";
 
@@ -12,7 +12,8 @@ const navItems = [
   { to: "/member/documents", icon: FileText, label: "Docs" },
   { to: "/member/news", icon: Newspaper, label: "News" },
   
-  { to: "/member/notifications", icon: Bell, label: "Notifications" },
+  { to: "/member/notifications", icon: Bell, label: "Alerts" },
+  { to: "/member/profile", icon: User, label: "Profile" },
 ];
 
 export default function MemberLayout({ children }: { children: ReactNode }) {

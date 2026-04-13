@@ -27,6 +27,7 @@ import MemberEvents from "@/pages/member/MemberEvents";
 import MemberDocuments from "@/pages/member/MemberDocuments";
 import MemberChat from "@/pages/member/MemberChat";
 import MemberNotifications from "@/pages/member/MemberNotifications";
+import MemberProfile from "@/pages/member/MemberProfile";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -73,6 +74,7 @@ function AppRoutes() {
       <Route path="/member/news" element={<MemberLayout><MemberNews /></MemberLayout>} />
       
       <Route path="/member/notifications" element={<MemberLayout><MemberNotifications /></MemberLayout>} />
+      <Route path="/member/profile" element={<MemberLayout><MemberProfile /></MemberLayout>} />
       <Route path="*" element={<Navigate to="/member" replace />} />
     </Routes>
   );
