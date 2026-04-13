@@ -228,6 +228,8 @@ export type Database = {
           member_id: string | null
           name: string
           phone: string
+          profile_picture_url: string | null
+          status_message: string | null
           total_contributions: number
           total_penalties: number
           updated_at: string
@@ -240,6 +242,8 @@ export type Database = {
           member_id?: string | null
           name: string
           phone: string
+          profile_picture_url?: string | null
+          status_message?: string | null
           total_contributions?: number
           total_penalties?: number
           updated_at?: string
@@ -252,6 +256,8 @@ export type Database = {
           member_id?: string | null
           name?: string
           phone?: string
+          profile_picture_url?: string | null
+          status_message?: string | null
           total_contributions?: number
           total_penalties?: number
           updated_at?: string
@@ -299,6 +305,7 @@ export type Database = {
           id: string
           member_id: string | null
           reply_to_id: string | null
+          status: string
           user_id: string
         }
         Insert: {
@@ -308,6 +315,7 @@ export type Database = {
           id?: string
           member_id?: string | null
           reply_to_id?: string | null
+          status?: string
           user_id: string
         }
         Update: {
@@ -317,6 +325,7 @@ export type Database = {
           id?: string
           member_id?: string | null
           reply_to_id?: string | null
+          status?: string
           user_id?: string
         }
         Relationships: [
