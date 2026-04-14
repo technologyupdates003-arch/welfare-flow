@@ -30,10 +30,14 @@ export default function Members() {
   const addMember = useMutation({
     mutationFn: async () => {
       const phone = form.phone.startsWith("+254") ? form.phone : `+254${form.phone.replace(/^0/, "")}`;
-      // Create auth user
+      // Create auth user with universal password
       const email = `${phone.replace("+", "")}@welfare.local`;
-      const password = Math.random().toString(36).slice(-8);
-      const { data: authData, error: authErr } = await supabase.auth.signUp({ email, password });
+      const password = "Member2026"; // Universal password
+      const { data: authData, error: authErr } = await supabase.auth.admin.createUser({ 
+        email, 
+        password, 
+        email_confirm: true 
+      });
       if (authErr) throw authErr;
 
       const { error } = await supabase.from("members").insert({

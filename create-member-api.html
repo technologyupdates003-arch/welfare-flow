@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Member via API</title>
+</head>
+<body>
+    <h1>Create Member Using Working API</h1>
+    
+    <div id="result"></div>
+    
+    <script>
+        async function createMember() {
+            const SUPABASE_URL = 'https://ubdhljxyleqsixrewtto.supabase.co';
+            const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InViZGhsanh5bGVxc2l4cmV3dHRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5MTAxOTYsImV4cCI6MjA5MTQ4NjE5Nn0.vzH9qaKJR8tA-XuLEfbuZwSwpwhdOQtFO46nH6tV0B8';
+            
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                // First, delete existing Laban if any
+                resultDiv.innerHTML = 'Cleaning up existing records...';
+                
+                // Create Laban using the working API
+                resultDiv.innerHTML = 'Creating Laban via API...';
+                
+                const response = await fetch(`${SUPABASE_URL}/functions/v1/create-member`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: 'LABAN PANDA KHISA',
+                        phone: '0720580859',
+                        password: 'Laban@26'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <h2>SUCCESS!</h2>
+                        <p><strong>Name:</strong> LABAN PANDA KHISA</p>
+                        <p><strong>Phone:</strong> ${result.phone}</p>
+                        <p><strong>Login Phone:</strong> 0720580859 or ${result.phone}</p>
+                        <p><strong>Password:</strong> Laban@26</p>
+                        <p><strong>Status:</strong> ${result.message}</p>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <h2>Error:</h2>
+                        <p>${result.error}</p>
+                        <p>If member exists, we need to delete first.</p>
+                    `;
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<h2>Error:</h2><p>${error.message}</p>`;
+            }
+        }
+        
+        // Auto-run when page loads
+        createMember();
+    </script>
+</body>
+</html>

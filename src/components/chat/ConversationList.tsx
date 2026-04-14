@@ -17,24 +17,52 @@ interface ConversationListProps {
 export default function ConversationList({ activeId, onSelect, onNewChat, onGroupChat, darkMode = false }: ConversationListProps) {
   const { user } = useAuth();
 
-  const { data: conversations } = useQuery({
+  const { data: conversations, error: conversationsError } = useQuery({
     queryKey: ["conversations", user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data: participations } = await supabase
+      
+      console.log("Loading conversations for user:", user.id);
+      
+      // Get user's conversation participations
+      const { data: participations, error: partError } = await supabase
         .from("conversation_participants")
         .select("conversation_id")
         .eq("user_id", user.id);
-      const ids = (participations || []).map(p => p.conversation_id);
-      if (ids.length === 0) return [];
-      const { data } = await supabase
+      
+      console.log("Participations:", participations, "Error:", partError);
+      
+      if (!participations || participations.length === 0) {
+        console.log("No participations found");
+        return [];
+      }
+      
+      const conversationIds = participations.map(p => p.conversation_id);
+      console.log("Conversation IDs:", conversationIds);
+      
+      // Get conversations - simplified query
+      const { data: conversations, error: convError } = await supabase
         .from("conversations")
         .select("*")
-        .in("id", ids)
+        .in("id", conversationIds)
         .order("updated_at", { ascending: false });
-      return data || [];
+      
+      console.log("Conversations:", conversations, "Error:", convError);
+      
+      if (!conversations) return [];
+      
+      // Add basic info without complex joins
+      const conversationsWithData = conversations.map(conv => ({
+        ...conv,
+        unreadCount: 0, // Simplified for now
+        lastMessage: null // Simplified for now
+      }));
+      
+      console.log("Final conversations:", conversationsWithData);
+      return conversationsWithData;
     },
     enabled: !!user,
+    refetchInterval: 5000,
   });
 
   const { data: presenceData } = useQuery({
@@ -63,6 +91,21 @@ export default function ConversationList({ activeId, onSelect, onNewChat, onGrou
       </div>
 
       <ScrollArea className="flex-1">
+        {/* Debug info */}
+        {conversationsError && (
+          <div className="p-4 text-center text-red-500">
+            <p className="text-sm">Error loading conversations</p>
+            <p className="text-xs">{conversationsError.message}</p>
+          </div>
+        )}
+        
+        {conversations?.length === 0 && !conversationsError && (
+          <div className="p-4 text-center text-muted-foreground">
+            <p className="text-sm">No conversations yet</p>
+            <p className="text-xs">Start a new chat to begin messaging</p>
+          </div>
+        )}
+        
         <button
           onClick={() => onSelect("group")}
           className={cn(
@@ -78,7 +121,7 @@ export default function ConversationList({ activeId, onSelect, onNewChat, onGrou
             <Users className="h-5 w-5 text-white" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="font-medium text-sm">Group Chat</p>
+            <p className="font-medium text-sm">Welfare Chat</p>
             <p className={cn("text-xs", darkMode ? "text-gray-400" : "text-muted-foreground")}>
               {onlineCount} online
             </p>
@@ -102,8 +145,27 @@ export default function ConversationList({ activeId, onSelect, onNewChat, onGrou
               {c.type === "group" ? <Users className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-medium text-sm truncate">{c.name || "Private Chat"}</p>
-              <p className={cn("text-xs", darkMode ? "text-gray-400" : "text-muted-foreground")}>{c.type}</p>
+              <div className="flex items-center justify-between">
+                <p className="font-medium text-sm truncate">
+                  {c.name || (c.type === "group" ? "Group Chat" : "Private Chat")}
+                </p>
+                <span className={cn("text-xs", darkMode ? "text-gray-400" : "text-muted-foreground")}>
+                  {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className={cn("text-xs truncate", darkMode ? "text-gray-400" : "text-muted-foreground")}>
+                  {c.type === "private" ? "Private conversation" : "Group conversation"}
+                </p>
+                {c.unreadCount > 0 && (
+                  <span className={cn(
+                    "ml-2 px-1.5 py-0.5 rounded-full text-xs font-medium text-white min-w-[18px] text-center",
+                    darkMode ? "bg-[#00A884]" : "bg-primary"
+                  )}>
+                    {c.unreadCount > 99 ? "99+" : c.unreadCount}
+                  </span>
+                )}
+              </div>
             </div>
           </button>
         ))}

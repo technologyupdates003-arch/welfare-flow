@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, AlertTriangle, Clock, CheckCircle } from "lucide-react";
+import { DollarSign, AlertTriangle, Clock, CheckCircle, CreditCard } from "lucide-react";
 
 export default function MemberDashboard() {
   const { memberId } = useAuth();
@@ -33,6 +33,19 @@ export default function MemberDashboard() {
     enabled: !!memberId,
   });
 
+  const { data: payments } = useQuery({
+    queryKey: ["my-payments", memberId],
+    queryFn: async () => {
+      if (!memberId) return [];
+      const { data } = await supabase
+        .from("payments")
+        .select("*")
+        .eq("member_id", memberId)
+        .order("received_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!memberId,
+  });
   const { data: penalties } = useQuery({
     queryKey: ["my-penalties", memberId],
     queryFn: async () => {
@@ -87,6 +100,29 @@ export default function MemberDashboard() {
           <CardContent><div className="text-2xl font-display font-bold">KES {unpaidPenalties.toLocaleString()}</div></CardContent>
         </Card>
       </div>
+
+      {/* Payment Details Card */}
+      <Card className="bg-gradient-to-r from-purple-600 to-purple-700 text-white">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white">
+            <CreditCard className="h-5 w-5" />
+            WELFARE PAYMENT DETAILS
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="text-center space-y-2">
+            <div>
+              <p className="text-purple-100 text-sm">Paybill NO.</p>
+              <p className="text-2xl font-bold">400200</p>
+            </div>
+            <div>
+              <p className="text-purple-100 text-sm">Account No.</p>
+              <p className="text-2xl font-bold">40088588</p>
+            </div>
+          </div>
+
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><CardTitle>Contribution History</CardTitle></CardHeader>

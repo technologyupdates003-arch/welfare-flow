@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
         if (!memberId) {
           // Create auth user + member
           const email = `${phone.replace("+", "")}@welfare.local`;
-          const password = Math.random().toString(36).slice(-8) + "A1!";
+          const password = "Member2026"; // Universal password
 
           const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
             email, password, email_confirm: true,

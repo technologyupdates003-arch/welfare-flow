@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Shield } from "lucide-react";
+import logoImage from "@/assets/WhatsApp Image 2026-04-13 at 12.35.07.jpeg";
 
 export default function Login() {
   const { signIn } = useAuth();
@@ -27,10 +27,14 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md animate-fade-in">
         <CardHeader className="text-center space-y-2">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary">
-            <Shield className="h-7 w-7 text-primary-foreground" />
+          <div className="mx-auto flex h-20 w-20 items-center justify-center">
+            <img 
+              src={logoImage} 
+              alt="Kirinyaga Health Care Workers Welfare" 
+              className="h-full w-full object-contain"
+            />
           </div>
-          <CardTitle className="text-2xl">Welfare Management</CardTitle>
+          <CardTitle className="text-2xl">KIRINYAGA HCWW</CardTitle>
           <CardDescription>Sign in with your phone number</CardDescription>
         </CardHeader>
         <CardContent>

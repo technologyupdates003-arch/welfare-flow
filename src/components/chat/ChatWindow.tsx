@@ -30,7 +30,12 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
     queryFn: async () => {
       let q = supabase
         .from("messages")
-        .select("*, members(name, profile_picture_url), message_reactions(*)")
+        .select(`
+          *, 
+          members(name, profile_picture_url),
+          message_reactions(*),
+          user_roles!inner(role)
+        `)
         .order("created_at", { ascending: true })
         .limit(200);
 
@@ -44,7 +49,13 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
       if (replyIds.length > 0) {
         const { data: replies } = await supabase
           .from("messages")
-          .select("id, content, members(name), user_id")
+          .select(`
+            id, 
+            content, 
+            members(name), 
+            user_id,
+            user_roles!inner(role)
+          `)
           .in("id", replyIds);
         const replyMap = new Map((replies || []).map((r: any) => [r.id, r]));
         return data.map((m: any) => ({ ...m, replyMessage: m.reply_to_id ? replyMap.get(m.reply_to_id) : null }));
@@ -123,6 +134,17 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
     },
   });
 
+  const deleteMessage = useMutation({
+    mutationFn: async (messageId: string) => {
+      const { error } = await supabase
+        .from("messages")
+        .update({ content: "🚫 This message was deleted", status: "deleted" })
+        .eq("id", messageId);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+  });
+
   const toggleReaction = useMutation({
     mutationFn: async ({ messageId, emoji }: { messageId: string; emoji: string }) => {
       const { data: existing } = await supabase
@@ -149,23 +171,36 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
     <div className="flex flex-col h-full">
       <ScrollArea className="flex-1 p-3">
         <div className="flex flex-col gap-1">
-          {messages?.map((m: any) => (
-            <MessageBubble
-              key={m.id}
-              content={m.content}
-              senderName={m.members?.name || "Admin"}
-              isOwn={m.user_id === user?.id}
-              time={format(new Date(m.created_at), "HH:mm")}
-              reactions={groupReactions(m.message_reactions)}
-              replyTo={m.replyMessage ? { senderName: m.replyMessage.members?.name || "Admin", content: m.replyMessage.content } : null}
-              onReply={() => setReplyTo(m)}
-              onReact={(emoji) => toggleReaction.mutate({ messageId: m.id, emoji })}
-              isOnline={presenceData?.get(m.user_id) ?? false}
-              darkMode={darkMode}
-              status={m.status}
-              profilePicture={m.members?.profile_picture_url}
-            />
-          ))}
+          {messages?.map((m: any) => {
+            // Determine sender name based on role
+            const isAdmin = m.user_roles?.some((role: any) => role.role === 'admin');
+            const senderName = isAdmin ? "Admin" : (m.members?.name || "Unknown User");
+            
+            return (
+              <MessageBubble
+                key={m.id}
+                content={m.content}
+                senderName={senderName}
+                isOwn={m.user_id === user?.id}
+                time={format(new Date(m.created_at), "HH:mm")}
+                reactions={groupReactions(m.message_reactions)}
+                replyTo={m.replyMessage ? { 
+                  senderName: m.replyMessage.user_roles?.some((role: any) => role.role === 'admin') 
+                    ? "Admin" 
+                    : (m.replyMessage.members?.name || "Unknown User"), 
+                  content: m.replyMessage.content 
+                } : null}
+                onReply={() => setReplyTo(m)}
+                onReact={(emoji) => toggleReaction.mutate({ messageId: m.id, emoji })}
+                isOnline={presenceData?.get(m.user_id) ?? false}
+                darkMode={darkMode}
+                status={m.status}
+                onDelete={m.user_id === user?.id ? () => deleteMessage.mutate(m.id) : undefined}
+                isDeleted={m.status === "deleted"}
+                profilePicture={m.members?.profile_picture_url}
+              />
+            );
+          })}
           <div ref={bottomRef} />
         </div>
       </ScrollArea>
@@ -173,7 +208,11 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
       {replyTo && (
         <div className={cn("px-3 py-2 border-t flex items-center gap-2", darkMode ? "bg-[#1F2C34] border-[#2A3942] text-gray-300" : "bg-muted/30 border-border")}>
           <div className="flex-1 text-xs truncate">
-            <span className="font-semibold">Replying to {replyTo.members?.name || "Admin"}: </span>
+            <span className="font-semibold">Replying to {
+              replyTo.user_roles?.some((role: any) => role.role === 'admin') 
+                ? "Admin" 
+                : (replyTo.members?.name || "Unknown User")
+            }: </span>
             <span className={darkMode ? "text-gray-400" : "text-muted-foreground"}>{replyTo.content}</span>
           </div>
           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setReplyTo(null)}>

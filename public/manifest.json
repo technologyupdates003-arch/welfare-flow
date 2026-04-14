@@ -1,7 +1,7 @@
 {
-  "name": "Welfare Manager",
-  "short_name": "Welfare",
-  "description": "Welfare Group Management System",
+  "name": "KIRINYAGA HCWW",
+  "short_name": "KIRINYAGA HCWW",
+  "description": "Kirinyaga Health Care Workers Welfare Management System",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

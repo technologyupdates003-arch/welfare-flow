@@ -1,19 +1,54 @@
 import { useState } from "react";
 import { MessageCircle, X, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import ChatWindow from "./ChatWindow";
 import ConversationList from "./ConversationList";
 import NewChatDialog from "./NewChatDialog";
 import { usePresence } from "@/hooks/usePresence";
+import { useNotifications } from "@/hooks/useNotifications";
 import chatLogo from "@/assets/chat-logo-watermark.png";
 
 export default function FloatingChatBubble() {
   usePresence();
+  useNotifications(); // Enable push notifications
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [activeConv, setActiveConv] = useState<string | null>(null);
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [newGroupOpen, setNewGroupOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+
+  // Get total unread count
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ["total-unread", user?.id],
+    queryFn: async () => {
+      if (!user) return 0;
+      
+      // Get user's conversations
+      const { data: participations } = await supabase
+        .from("conversation_participants")
+        .select("conversation_id")
+        .eq("user_id", user.id);
+      
+      const conversationIds = (participations || []).map(p => p.conversation_id);
+      if (conversationIds.length === 0) return 0;
+      
+      // Count unread messages across all conversations
+      const { count } = await supabase
+        .from("messages")
+        .select("*", { count: "exact", head: true })
+        .in("conversation_id", conversationIds)
+        .neq("user_id", user.id)
+        .neq("status", "read");
+      
+      return count || 0;
+    },
+    enabled: !!user && !open, // Only fetch when closed
+    refetchInterval: 5000, // Refresh every 5 seconds
+  });
 
   const showChat = activeConv !== null;
 
@@ -22,12 +57,18 @@ export default function FloatingChatBubble() {
       {/* Floating bubble */}
       <button
         onClick={() => setOpen(!open)}
+        style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 50 }}
         className={cn(
-          "fixed bottom-20 right-4 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center transition-transform hover:scale-110 md:bottom-6",
+          "h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center transition-transform hover:scale-110 relative",
           open && "rotate-90"
         )}
       >
         {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+        {!open && unreadCount > 0 && (
+          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center min-w-[24px] animate-pulse">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
       </button>
 
       {/* Chat panel - full screen on mobile */}
@@ -35,8 +76,8 @@ export default function FloatingChatBubble() {
         <div
           className={cn(
             "fixed z-50 flex flex-col overflow-hidden animate-scale-in",
-            // Mobile: full screen, Desktop: floating panel
-            "inset-0 md:inset-auto md:bottom-24 md:right-4 md:w-[380px] md:h-[560px] md:rounded-2xl md:border md:border-border md:shadow-2xl",
+            // Mobile: full screen, Desktop: floating panel positioned from right
+            "inset-0 md:inset-auto md:bottom-24 md:right-6 md:w-[380px] md:h-[560px] md:rounded-2xl md:border md:border-border md:shadow-2xl",
             darkMode ? "chat-dark" : "chat-light"
           )}
         >
@@ -55,7 +96,7 @@ export default function FloatingChatBubble() {
             <h3 className="font-semibold text-sm flex-1">
               {showChat
                 ? activeConv === "group"
-                  ? "Group Chat"
+                  ? "Welfare Chat"
                   : "Private Chat"
                 : "Chats"
               }

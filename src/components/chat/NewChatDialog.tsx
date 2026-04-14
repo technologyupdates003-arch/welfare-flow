@@ -26,14 +26,18 @@ export default function NewChatDialog({ open, onOpenChange, onCreated, isGroup =
   const { data: members } = useQuery({
     queryKey: ["all-members-chat"],
     queryFn: async () => {
-      const { data } = await supabase.from("members").select("id, name, phone, user_id").eq("is_active", true);
+      const { data } = await supabase
+        .from("members")
+        .select("id, name, phone, user_id, profile_picture_url")
+        .eq("is_active", true)
+        .order("name");
       return (data || []).filter((m: any) => m.user_id && m.user_id !== user?.id);
     },
     enabled: open,
   });
 
   const filtered = members?.filter((m: any) =>
-    m.name.toLowerCase().includes(search.toLowerCase()) || m.phone.includes(search)
+    search ? (m.name.toLowerCase().includes(search.toLowerCase()) || m.phone.includes(search)) : true
   );
 
   const createChat = useMutation({
@@ -111,6 +115,11 @@ export default function NewChatDialog({ open, onOpenChange, onCreated, isGroup =
         )}
         <Input placeholder="Search members..." value={search} onChange={(e) => setSearch(e.target.value)} />
         <ScrollArea className="h-[300px] mt-2">
+          {filtered?.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>{search ? `No members found matching "${search}"` : "No members available"}</p>
+            </div>
+          )}
           {filtered?.map((m: any) => (
             <button
               key={m.id}
@@ -120,13 +129,28 @@ export default function NewChatDialog({ open, onOpenChange, onCreated, isGroup =
                 selected.includes(m.id) ? "bg-primary/10 text-primary" : "hover:bg-accent"
               )}
             >
-              <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">
-                {m.name.charAt(0)}
+              <div className="relative">
+                {m.profile_picture_url ? (
+                  <img src={m.profile_picture_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+                ) : (
+                  <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">
+                    {m.name.charAt(0)}
+                  </div>
+                )}
+                {/* Online indicator */}
+                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-background"></div>
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-medium">{m.name}</p>
                 <p className="text-xs text-muted-foreground">{m.phone}</p>
               </div>
+              {selected.includes(m.id) && (
+                <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              )}
             </button>
           ))}
         </ScrollArea>
