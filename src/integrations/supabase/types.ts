@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      beneficiaries: {
+        Row: {
+          created_at: string
+          id: string
+          id_number: string | null
+          member_id: string
+          name: string
+          phone: string | null
+          relationship: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          id_number?: string | null
+          member_id: string
+          name: string
+          phone?: string | null
+          relationship?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          id_number?: string | null
+          member_id?: string
+          name?: string
+          phone?: string | null
+          relationship?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beneficiaries_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contributions: {
         Row: {
           amount: number
