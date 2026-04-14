@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { phone, password, name } = await req.json();
+    const { phone, password, name, member_id } = await req.json();
     if (!phone || !password || !name) {
       return new Response(JSON.stringify({ error: "Missing phone, password, or name" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
     // Create member record
     await supabase.from("members").insert({
-      name, phone: normalizedPhone, user_id: authData.user.id,
+      name, phone: normalizedPhone, user_id: authData.user.id, member_id: member_id || null,
     });
 
     // Assign member role
