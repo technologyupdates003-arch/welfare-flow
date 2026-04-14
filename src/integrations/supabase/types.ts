@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      beneficiaries: {
+        Row: {
+          created_at: string
+          id: string
+          id_number: string | null
+          member_id: string
+          name: string
+          phone: string | null
+          relationship: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          id_number?: string | null
+          member_id: string
+          name: string
+          phone?: string | null
+          relationship?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          id_number?: string | null
+          member_id?: string
+          name?: string
+          phone?: string | null
+          relationship?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beneficiaries_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contributions: {
         Row: {
           amount: number
@@ -646,6 +687,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_member_with_universal_password: {
+        Args: {
+          member_id_param?: string
+          member_name: string
+          member_phone: string
+        }
+        Returns: string
+      }
       get_user_conversation_ids: {
         Args: { _user_id: string }
         Returns: string[]
