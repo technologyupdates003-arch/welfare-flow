@@ -646,6 +646,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_member_with_universal_password: {
+        Args: {
+          member_id_param?: string
+          member_name: string
+          member_phone: string
+        }
+        Returns: string
+      }
       get_user_conversation_ids: {
         Args: { _user_id: string }
         Returns: string[]
