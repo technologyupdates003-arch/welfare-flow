@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Loader2 } from "lucide-react";
+import { Plus, Search, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Members() {
@@ -34,7 +34,7 @@ export default function Members() {
       const resp = await fetch(`https://${projectId}.supabase.co/functions/v1/create-member`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, password: "Member2026", name: form.name }),
+        body: JSON.stringify({ phone, password: "Member2026", name: form.name, member_id: form.member_id }),
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || "Failed to create member");
@@ -45,6 +45,18 @@ export default function Members() {
       setOpen(false);
       setForm({ name: "", phone: "", member_id: "" });
       toast.success("Member added! They can login with phone and password: Member2026");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMember = useMutation({
+    mutationFn: async (memberId: string) => {
+      const { error } = await supabase.from("members").delete().eq("id", memberId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["members"] });
+      toast.success("Member deleted");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -67,8 +79,9 @@ export default function Members() {
             </DialogHeader>
             <div className="space-y-4">
               <div><Label>Name</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Full name" /></div>
+              <div><Label>ID Number</Label><Input value={form.member_id} onChange={e => setForm(f => ({ ...f, member_id: e.target.value }))} placeholder="e.g. 32580859" /></div>
               <div><Label>Phone (07... or +254...)</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="0712345678" /></div>
-              <Button onClick={() => addMember.mutate()} disabled={addMember.isPending || !form.name || !form.phone} className="w-full">
+              <Button onClick={() => addMember.mutate()} disabled={addMember.isPending || !form.name || !form.phone || !form.member_id} className="w-full">
                 {addMember.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</> : "Add Member"}
               </Button>
             </div>
@@ -84,10 +97,11 @@ export default function Members() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Phone</TableHead>
-                <TableHead>Member ID</TableHead>
+                <TableHead>ID Number</TableHead>
                 <TableHead>Total Contributions</TableHead>
                 <TableHead>Penalties</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -105,6 +119,11 @@ export default function Members() {
                     <Badge variant={m.is_active ? "default" : "secondary"}>
                       {m.is_active ? "Active" : "Inactive"}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => { if (confirm(`Delete ${m.name}?`)) deleteMember.mutate(m.id); }}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
