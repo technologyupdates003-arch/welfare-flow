@@ -5,10 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Members() {
@@ -30,34 +30,21 @@ export default function Members() {
   const addMember = useMutation({
     mutationFn: async () => {
       const phone = form.phone.startsWith("+254") ? form.phone : `+254${form.phone.replace(/^0/, "")}`;
-      // Create auth user with universal password
-      const email = `${phone.replace("+", "")}@welfare.local`;
-      const password = "Member2026"; // Universal password
-      const { data: authData, error: authErr } = await supabase.auth.admin.createUser({ 
-        email, 
-        password, 
-        email_confirm: true 
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const resp = await fetch(`https://${projectId}.supabase.co/functions/v1/create-member`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, password: "Member2026", name: form.name }),
       });
-      if (authErr) throw authErr;
-
-      const { error } = await supabase.from("members").insert({
-        name: form.name,
-        phone,
-        member_id: form.member_id || null,
-        user_id: authData.user?.id,
-      });
-      if (error) throw error;
-
-      // Add member role
-      if (authData.user) {
-        await supabase.from("user_roles").insert({ user_id: authData.user.id, role: "member" });
-      }
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Failed to create member");
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["members"] });
       setOpen(false);
       setForm({ name: "", phone: "", member_id: "" });
-      toast.success("Member added successfully");
+      toast.success("Member added! They can login with phone and password: Member2026");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -74,13 +61,15 @@ export default function Members() {
             <Button><Plus className="h-4 w-4 mr-2" /> Add Member</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Add New Member</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>Add New Member</DialogTitle>
+              <DialogDescription>Create a member account with universal password: Member2026</DialogDescription>
+            </DialogHeader>
             <div className="space-y-4">
-              <div><Label>Name</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
-              <div><Label>Phone (+254...)</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>
-              <div><Label>Member ID (optional)</Label><Input value={form.member_id} onChange={e => setForm(f => ({ ...f, member_id: e.target.value }))} /></div>
-              <Button onClick={() => addMember.mutate()} disabled={addMember.isPending} className="w-full">
-                {addMember.isPending ? "Adding..." : "Add Member"}
+              <div><Label>Name</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Full name" /></div>
+              <div><Label>Phone (07... or +254...)</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="0712345678" /></div>
+              <Button onClick={() => addMember.mutate()} disabled={addMember.isPending || !form.name || !form.phone} className="w-full">
+                {addMember.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</> : "Add Member"}
               </Button>
             </div>
           </DialogContent>
