@@ -65,16 +65,6 @@ export function useNotifications() {
                   messageId: message.id,
                   senderId: message.user_id
                 },
-                actions: [
-                  {
-                    action: 'reply',
-                    title: 'Reply'
-                  },
-                  {
-                    action: 'mark-read',
-                    title: 'Mark as Read'
-                  }
-                ]
               }
             );
 

@@ -75,7 +75,8 @@ export default function MemberProfile() {
         return;
       }
 
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/generate-statement`, {
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/generate-statement`, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
         },
