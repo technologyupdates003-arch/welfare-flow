@@ -33,8 +33,7 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
         .select(`
           *, 
           members(name, profile_picture_url),
-          message_reactions(*),
-          user_roles!inner(role)
+          message_reactions(*)
         `)
         .order("created_at", { ascending: true })
         .limit(200);
@@ -45,32 +44,34 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
       const { data } = await q;
       if (!data) return [];
 
+      // Get roles for all user_ids in messages
+      const userIds = [...new Set(data.map((m: any) => m.user_id))];
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .in("user_id", userIds);
+      const roleMap = new Map((roles || []).map((r: any) => [r.user_id, r.role]));
+
+      // Get reply messages if needed
       const replyIds = data.filter((m: any) => m.reply_to_id).map((m: any) => m.reply_to_id);
+      let replyMap = new Map();
       if (replyIds.length > 0) {
         const { data: replies } = await supabase
           .from("messages")
-          .select(`
-            id, 
-            content, 
-            members(name), 
-            user_id,
-            user_roles!inner(role)
-          `)
+          .select("id, content, members(name), user_id")
           .in("id", replyIds);
-        const replyMap = new Map((replies || []).map((r: any) => [r.id, r]));
-        return data.map((m: any) => ({ ...m, replyMessage: m.reply_to_id ? replyMap.get(m.reply_to_id) : null }));
+        replyMap = new Map((replies || []).map((r: any) => [r.id, r]));
       }
-      return data;
-    },
-  });
 
-  const { data: presenceData } = useQuery({
-    queryKey: ["presence"],
-    queryFn: async () => {
-      const { data } = await supabase.from("user_presence").select("user_id, is_online");
-      return new Map((data || []).map((p: any) => [p.user_id, p.is_online]));
+      return data.map((m: any) => ({
+        ...m,
+        userRole: roleMap.get(m.user_id) || "member",
+        replyMessage: m.reply_to_id ? replyMap.get(m.reply_to_id) : null,
+        replyRole: m.reply_to_id && replyMap.get(m.reply_to_id) 
+          ? roleMap.get(replyMap.get(m.reply_to_id).user_id) || "member" 
+          : null,
+      }));
     },
-    refetchInterval: 10000,
   });
 
   // Mark messages as read when opening chat
@@ -78,7 +79,6 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
     if (!user || !messages) return;
     const unread = messages.filter((m: any) => m.user_id !== user.id && m.status !== "read");
     if (unread.length === 0) return;
-
     const ids = unread.map((m: any) => m.id);
     supabase.from("messages").update({ status: "read" }).in("id", ids).then(() => {
       queryClient.invalidateQueries({ queryKey });
@@ -90,7 +90,6 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
     if (!user || !messages) return;
     const delivered = messages.filter((m: any) => m.user_id !== user.id && m.status === "sent");
     if (delivered.length === 0) return;
-
     const ids = delivered.map((m: any) => m.id);
     supabase.from("messages").update({ status: "delivered" }).in("id", ids).then(() => {
       queryClient.invalidateQueries({ queryKey });
@@ -167,13 +166,21 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
     return Array.from(map.entries()).map(([emoji, data]) => ({ emoji, ...data }));
   };
 
+  const { data: presenceData } = useQuery({
+    queryKey: ["presence"],
+    queryFn: async () => {
+      const { data } = await supabase.from("user_presence").select("user_id, is_online");
+      return new Map((data || []).map((p: any) => [p.user_id, p.is_online]));
+    },
+    refetchInterval: 10000,
+  });
+
   return (
     <div className="flex flex-col h-full">
       <ScrollArea className="flex-1 p-3">
         <div className="flex flex-col gap-1">
           {messages?.map((m: any) => {
-            // Determine sender name based on role
-            const isAdmin = m.user_roles?.some((role: any) => role.role === 'admin');
+            const isAdmin = m.userRole === 'admin';
             const senderName = isAdmin ? "Admin" : (m.members?.name || "Unknown User");
             
             return (
@@ -185,7 +192,7 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
                 time={format(new Date(m.created_at), "HH:mm")}
                 reactions={groupReactions(m.message_reactions)}
                 replyTo={m.replyMessage ? { 
-                  senderName: m.replyMessage.user_roles?.some((role: any) => role.role === 'admin') 
+                  senderName: m.replyRole === 'admin' 
                     ? "Admin" 
                     : (m.replyMessage.members?.name || "Unknown User"), 
                   content: m.replyMessage.content 
@@ -209,7 +216,7 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
         <div className={cn("px-3 py-2 border-t flex items-center gap-2", darkMode ? "bg-[#1F2C34] border-[#2A3942] text-gray-300" : "bg-muted/30 border-border")}>
           <div className="flex-1 text-xs truncate">
             <span className="font-semibold">Replying to {
-              replyTo.user_roles?.some((role: any) => role.role === 'admin') 
+              replyTo.userRole === 'admin' 
                 ? "Admin" 
                 : (replyTo.members?.name || "Unknown User")
             }: </span>
