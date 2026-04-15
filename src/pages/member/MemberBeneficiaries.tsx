@@ -89,8 +89,7 @@ export default function MemberBeneficiaries() {
                       <SelectItem value="spouse">Spouse</SelectItem>
                       <SelectItem value="child">Child</SelectItem>
                       <SelectItem value="parent">Parent</SelectItem>
-                      <SelectItem value="sibling">Sibling</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="in-law">In-Law</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

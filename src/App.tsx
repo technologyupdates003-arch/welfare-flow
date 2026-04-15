@@ -24,6 +24,7 @@ import MemberDashboard from "@/pages/member/MemberDashboard";
 import MemberNews from "@/pages/member/MemberNews";
 import MemberEvents from "@/pages/member/MemberEvents";
 import MemberDocuments from "@/pages/member/MemberDocuments";
+import MemberDownloads from "@/pages/member/MemberDownloads";
 import MemberNotifications from "@/pages/member/MemberNotifications";
 import MemberProfile from "@/pages/member/MemberProfile";
 import MemberBeneficiaries from "@/pages/member/MemberBeneficiaries";
@@ -69,6 +70,7 @@ function AppRoutes() {
       <Route path="/member" element={<MemberLayout><MemberDashboard /></MemberLayout>} />
       <Route path="/member/events" element={<MemberLayout><MemberEvents /></MemberLayout>} />
       <Route path="/member/documents" element={<MemberLayout><MemberDocuments /></MemberLayout>} />
+      <Route path="/member/downloads" element={<MemberLayout><MemberDownloads /></MemberLayout>} />
       <Route path="/member/news" element={<MemberLayout><MemberNews /></MemberLayout>} />
       <Route path="/member/beneficiaries" element={<MemberLayout><MemberBeneficiaries /></MemberLayout>} />
       <Route path="/member/notifications" element={<MemberLayout><MemberNotifications /></MemberLayout>} />
