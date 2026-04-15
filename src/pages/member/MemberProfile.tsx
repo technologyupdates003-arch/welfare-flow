@@ -7,21 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Camera, Loader2, Save, Lock, Download, FileText, Eye } from "lucide-react";
+import { Camera, Loader2, Save, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 export default function MemberProfile() {
-  const { user, memberId } = useAuth();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showConstitution, setShowConstitution] = useState(false);
-  const [showStatement, setShowStatement] = useState(false);
-  const [statementHtml, setStatementHtml] = useState("");
-  const [loadingStatement, setLoadingStatement] = useState(false);
 
   const { data: member, isLoading } = useQuery({
     queryKey: ["my-profile", user?.id],
@@ -30,15 +25,6 @@ export default function MemberProfile() {
       return data;
     },
     enabled: !!user,
-  });
-
-  const { data: contributions } = useQuery({
-    queryKey: ["my-contributions-statement", memberId],
-    queryFn: async () => {
-      const { data } = await supabase.from("contributions").select("*").eq("member_id", memberId!).order("year", { ascending: false }).order("month", { ascending: false });
-      return data || [];
-    },
-    enabled: !!memberId,
   });
 
   const [name, setName] = useState("");
@@ -92,97 +78,6 @@ export default function MemberProfile() {
     setUploading(false);
   };
 
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
-  const generateStatementHtml = () => {
-    const totalPaid = contributions?.filter(c => c.status === "paid").reduce((s, c) => s + Number(c.amount), 0) || 0;
-    const totalPending = contributions?.filter(c => c.status !== "paid").reduce((s, c) => s + Number(c.amount), 0) || 0;
-    return `<!DOCTYPE html><html><head><title>Statement - ${member?.name}</title>
-    <style>body{font-family:Arial,sans-serif;margin:40px;line-height:1.6}
-    .header{text-align:center;margin-bottom:30px;border-bottom:3px solid #16a34a;padding-bottom:20px}
-    table{width:100%;border-collapse:collapse;margin:20px 0}
-    th,td{border:1px solid #ddd;padding:10px;text-align:left}
-    th{background:#16a34a;color:white}
-    .paid{color:#16a34a;font-weight:bold}.pending{color:#f59e0b}.overdue{color:#ef4444;font-weight:bold}
-    .summary{display:flex;gap:20px;margin:20px 0}
-    .summary-card{flex:1;padding:15px;border-radius:8px;text-align:center}
-    .total{background:#f0fdf4;border:1px solid #16a34a}.pend{background:#fffbeb;border:1px solid #f59e0b}
-    </style></head><body>
-    <div class="header"><h1>KIRINYAGA HCWW</h1><h2>Member Statement</h2>
-    <p><strong>${member?.name}</strong> | ${member?.phone} | ID: ${member?.member_id || 'N/A'}</p>
-    <p>Generated: ${new Date().toLocaleDateString()}</p></div>
-    <div class="summary"><div class="summary-card total"><h3>Total Paid</h3><h2>KES ${totalPaid.toLocaleString()}</h2></div>
-    <div class="summary-card pend"><h3>Pending/Overdue</h3><h2>KES ${totalPending.toLocaleString()}</h2></div></div>
-    <table><thead><tr><th>Period</th><th>Amount</th><th>Due Date</th><th>Paid Date</th><th>Status</th></tr></thead><tbody>
-    ${(contributions || []).map(c => `<tr><td>${months[c.month-1]} ${c.year}</td><td>KES ${Number(c.amount).toLocaleString()}</td>
-    <td>${c.due_date}</td><td>${c.paid_date || '—'}</td>
-    <td class="${c.status}">${c.status.toUpperCase()}</td></tr>`).join('')}
-    </tbody></table>
-    <p style="margin-top:40px;text-align:center;color:#666;font-size:12px">This is an auto-generated statement from KIRINYAGA HCWW System</p>
-    </body></html>`;
-  };
-
-  const previewStatement = () => {
-    setStatementHtml(generateStatementHtml());
-    setShowStatement(true);
-  };
-
-  const downloadStatement = () => {
-    const html = generateStatementHtml();
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `statement-${member?.name?.replace(/\s+/g, '-') || 'member'}.html`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-    toast.success("Statement downloaded!");
-  };
-
-  const constitutionHtml = `<!DOCTYPE html><html><head><title>KIRINYAGA HCWW Constitution</title>
-  <style>body{font-family:Arial,sans-serif;margin:40px;line-height:1.6}.header{text-align:center;margin-bottom:40px}
-  .article{margin-bottom:30px}.article h3{color:#16a34a;border-bottom:2px solid #16a34a;padding-bottom:5px}
-  ol{padding-left:20px}li{margin-bottom:10px}</style></head><body>
-  <div class="header"><h1>KIRINYAGA HEALTH CARE WORKERS WELFARE</h1><h2>CONSTITUTION</h2></div>
-  <div class="article"><h3>Article 1: Name and Purpose</h3><ol>
-  <li>The organization shall be known as "Kirinyaga Health Care Workers Welfare" (KIRINYAGA HCWW).</li>
-  <li>The purpose is to provide mutual support and welfare benefits to health care workers in Kirinyaga.</li></ol></div>
-  <div class="article"><h3>Article 2: Membership</h3><ol>
-  <li>Membership is open to all health care workers in Kirinyaga County.</li>
-  <li>Members must pay monthly contributions as determined by the organization.</li>
-  <li>Members have equal rights and responsibilities within the organization.</li></ol></div>
-  <div class="article"><h3>Article 3: Contributions</h3><ol>
-  <li>Monthly contributions are due by the 5th of each month.</li>
-  <li>Late payments may incur penalties as determined by the executive committee.</li>
-  <li>Contribution amounts may be reviewed annually by the general assembly.</li></ol></div>
-  <div class="article"><h3>Article 4: Benefits</h3><ol>
-  <li>Members are entitled to welfare support during times of need.</li>
-  <li>Emergency financial assistance may be provided to members in good standing.</li>
-  <li>Social support during bereavements and celebrations.</li></ol></div>
-  <div class="article"><h3>Article 5: Governance</h3><ol>
-  <li>The organization shall be governed by an elected executive committee.</li>
-  <li>Elections shall be held annually during the general assembly.</li>
-  <li>All members in good standing are eligible to vote and be elected.</li></ol></div>
-  <div class="article"><h3>Article 6: Amendments</h3><ol>
-  <li>This constitution may be amended by a two-thirds majority vote of the general assembly.</li>
-  <li>Proposed amendments must be circulated to members at least 30 days before voting.</li></ol></div>
-  </body></html>`;
-
-  const downloadConstitution = () => {
-    const blob = new Blob([constitutionHtml], { type: 'text/html' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'KIRINYAGA-HCWW-Constitution.html';
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-    toast.success("Constitution downloaded!");
-  };
-
   if (isLoading) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
   return (
@@ -234,44 +129,6 @@ export default function MemberProfile() {
           )}
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><Download className="h-5 w-5" /> Documents</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={previewStatement} className="flex-1"><Eye className="h-4 w-4 mr-2" /> View Statement</Button>
-            <Button variant="outline" onClick={downloadStatement}><Download className="h-4 w-4" /></Button>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowConstitution(true)} className="flex-1"><Eye className="h-4 w-4 mr-2" /> Read Constitution</Button>
-            <Button variant="outline" onClick={downloadConstitution}><Download className="h-4 w-4" /></Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Statement Preview Dialog */}
-      <Dialog open={showStatement} onOpenChange={setShowStatement}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
-          <DialogHeader>
-            <DialogTitle>My Statement</DialogTitle>
-            <DialogDescription>Preview your contribution statement</DialogDescription>
-          </DialogHeader>
-          <div dangerouslySetInnerHTML={{ __html: statementHtml }} />
-          <Button onClick={downloadStatement} className="w-full"><Download className="h-4 w-4 mr-2" /> Download Statement</Button>
-        </DialogContent>
-      </Dialog>
-
-      {/* Constitution Dialog */}
-      <Dialog open={showConstitution} onOpenChange={setShowConstitution}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
-          <DialogHeader>
-            <DialogTitle>KIRINYAGA HCWW Constitution</DialogTitle>
-            <DialogDescription>Organization rules and guidelines</DialogDescription>
-          </DialogHeader>
-          <div dangerouslySetInnerHTML={{ __html: constitutionHtml }} />
-          <Button onClick={downloadConstitution} className="w-full"><Download className="h-4 w-4 mr-2" /> Download Constitution</Button>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

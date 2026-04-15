@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, AlertTriangle, Clock, CheckCircle, CreditCard } from "lucide-react";
+import { Wallet, AlertTriangle, Clock, CheckCircle, CreditCard } from "lucide-react";
 
 export default function MemberDashboard() {
   const { memberId } = useAuth();
@@ -33,19 +33,6 @@ export default function MemberDashboard() {
     enabled: !!memberId,
   });
 
-  const { data: payments } = useQuery({
-    queryKey: ["my-payments", memberId],
-    queryFn: async () => {
-      if (!memberId) return [];
-      const { data } = await supabase
-        .from("payments")
-        .select("*")
-        .eq("member_id", memberId)
-        .order("received_at", { ascending: false });
-      return data || [];
-    },
-    enabled: !!memberId,
-  });
   const { data: penalties } = useQuery({
     queryKey: ["my-penalties", memberId],
     queryFn: async () => {
@@ -57,8 +44,7 @@ export default function MemberDashboard() {
   });
 
   const totalPaid = contributions?.filter(c => c.status === "paid").reduce((s, c) => s + Number(c.amount), 0) || 0;
-  const pending = contributions?.filter(c => c.status === "pending").length || 0;
-  const overdue = contributions?.filter(c => c.status === "overdue").length || 0;
+  const unpaidCount = contributions?.filter(c => c.status !== "paid").length || 0;
   const unpaidPenalties = penalties?.filter(p => !p.is_paid).reduce((s, p) => s + Number(p.amount), 0) || 0;
 
   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -74,23 +60,16 @@ export default function MemberDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm text-muted-foreground">Total Contributed</CardTitle>
-            <DollarSign className="h-5 w-5 text-success" />
+            <Wallet className="h-5 w-5 text-success" />
           </CardHeader>
           <CardContent><div className="text-2xl font-display font-bold">KES {totalPaid.toLocaleString()}</div></CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Pending</CardTitle>
-            <Clock className="h-5 w-5 text-warning" />
+            <CardTitle className="text-sm text-muted-foreground">Unpaid</CardTitle>
+            <Clock className="h-5 w-5 text-destructive" />
           </CardHeader>
-          <CardContent><div className="text-2xl font-display font-bold">{pending}</div></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Overdue</CardTitle>
-            <AlertTriangle className="h-5 w-5 text-destructive" />
-          </CardHeader>
-          <CardContent><div className="text-2xl font-display font-bold text-destructive">{overdue}</div></CardContent>
+          <CardContent><div className="text-2xl font-display font-bold text-destructive">{unpaidCount}</div></CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -120,7 +99,6 @@ export default function MemberDashboard() {
               <p className="text-2xl font-bold">40088588</p>
             </div>
           </div>
-
         </CardContent>
       </Card>
 
@@ -137,11 +115,11 @@ export default function MemberDashboard() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">KES {Number(c.amount).toLocaleString()}</span>
                   <Badge
-                    variant={c.status === "paid" ? "default" : c.status === "overdue" ? "destructive" : "secondary"}
+                    variant={c.status === "paid" ? "default" : "destructive"}
                     className="flex items-center gap-1"
                   >
                     {c.status === "paid" && <CheckCircle className="h-3 w-3" />}
-                    {c.status}
+                    {c.status === "paid" ? "Paid" : "Unpaid"}
                   </Badge>
                 </div>
               </div>
