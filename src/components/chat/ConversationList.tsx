@@ -165,10 +165,16 @@ export default function ConversationList({ activeId, onSelect, onNewChat, onGrou
             )}
           >
             <div className={cn(
-              "h-10 w-10 rounded-full flex items-center justify-center shrink-0",
+              "h-10 w-10 rounded-full flex items-center justify-center shrink-0 overflow-hidden",
               darkMode ? "bg-[#2A3942]" : "bg-secondary"
             )}>
-              {c.type === "group" ? <Users className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
+              {c.profilePicture ? (
+                <img src={c.profilePicture} alt="" className="h-10 w-10 rounded-full object-cover" />
+              ) : c.type === "group" ? (
+                <Users className="h-5 w-5" />
+              ) : (
+                <span className="text-sm font-bold">{(c.displayName || "?").charAt(0)}</span>
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between">
