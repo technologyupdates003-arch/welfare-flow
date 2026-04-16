@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, AlertTriangle, Clock, CheckCircle, CreditCard } from "lucide-react";
+import { Wallet, AlertTriangle, Clock, CheckCircle, CreditCard, Newspaper } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function MemberDashboard() {
   const { memberId } = useAuth();
