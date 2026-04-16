@@ -51,6 +51,8 @@ export default function MemberDashboard() {
       return data || [];
     },
   });
+
+  const totalPaid = contributions?.filter(c => c.status === "paid").reduce((s, c) => s + Number(c.amount), 0) || 0;
   const unpaidCount = contributions?.filter(c => c.status !== "paid").length || 0;
   const unpaidPenalties = penalties?.filter(p => !p.is_paid).reduce((s, p) => s + Number(p.amount), 0) || 0;
 
