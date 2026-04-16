@@ -44,7 +44,13 @@ export default function MemberDashboard() {
     enabled: !!memberId,
   });
 
-  const totalPaid = contributions?.filter(c => c.status === "paid").reduce((s, c) => s + Number(c.amount), 0) || 0;
+  const { data: latestNews } = useQuery({
+    queryKey: ["latest-news"],
+    queryFn: async () => {
+      const { data } = await supabase.from("news").select("*").order("created_at", { ascending: false }).limit(3);
+      return data || [];
+    },
+  });
   const unpaidCount = contributions?.filter(c => c.status !== "paid").length || 0;
   const unpaidPenalties = penalties?.filter(p => !p.is_paid).reduce((s, p) => s + Number(p.amount), 0) || 0;
 
@@ -102,6 +108,25 @@ export default function MemberDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Latest News */}
+      {latestNews && latestNews.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2"><Newspaper className="h-5 w-5" /> Latest News</CardTitle>
+            <Link to="/member/news" className="text-xs text-primary underline">View All</Link>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {latestNews.map((n: any) => (
+              <div key={n.id} className="border-b border-border last:border-0 pb-2">
+                <p className="font-medium text-sm">{n.title}</p>
+                <p className="text-xs text-muted-foreground line-clamp-2">{n.content}</p>
+                <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleDateString()}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader><CardTitle>Contribution History</CardTitle></CardHeader>
