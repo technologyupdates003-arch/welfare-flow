@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, AlertTriangle, Clock, CheckCircle, CreditCard } from "lucide-react";
+import { Wallet, AlertTriangle, Clock, CheckCircle, CreditCard, Newspaper } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function MemberDashboard() {
   const { memberId } = useAuth();
@@ -41,6 +42,14 @@ export default function MemberDashboard() {
       return data || [];
     },
     enabled: !!memberId,
+  });
+
+  const { data: latestNews } = useQuery({
+    queryKey: ["latest-news"],
+    queryFn: async () => {
+      const { data } = await supabase.from("news").select("*").order("created_at", { ascending: false }).limit(3);
+      return data || [];
+    },
   });
 
   const totalPaid = contributions?.filter(c => c.status === "paid").reduce((s, c) => s + Number(c.amount), 0) || 0;
@@ -101,6 +110,25 @@ export default function MemberDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Latest News */}
+      {latestNews && latestNews.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2"><Newspaper className="h-5 w-5" /> Latest News</CardTitle>
+            <Link to="/member/news" className="text-xs text-primary underline">View All</Link>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {latestNews.map((n: any) => (
+              <div key={n.id} className="border-b border-border last:border-0 pb-2">
+                <p className="font-medium text-sm">{n.title}</p>
+                <p className="text-xs text-muted-foreground line-clamp-2">{n.content}</p>
+                <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleDateString()}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader><CardTitle>Contribution History</CardTitle></CardHeader>

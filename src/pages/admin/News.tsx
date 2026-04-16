@@ -27,15 +27,31 @@ export default function AdminNews() {
 
   const createNews = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("news").insert({ title, content, author_id: user!.id });
+      const { data: newsItem, error } = await supabase.from("news").insert({ title, content, author_id: user!.id }).select("id").single();
       if (error) throw error;
+
+      // Notify all active members
+      const { data: allMembers } = await supabase.from("members").select("user_id").eq("is_active", true).not("user_id", "is", null);
+      if (allMembers && allMembers.length > 0) {
+        const notifications = allMembers
+          .filter((m: any) => m.user_id !== user!.id)
+          .map((m: any) => ({
+            user_id: m.user_id,
+            title: `📢 ${title}`,
+            message: content.length > 100 ? content.substring(0, 100) + "..." : content,
+            type: "news",
+          }));
+        if (notifications.length > 0) {
+          await supabase.from("notifications").insert(notifications);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["news"] });
       setOpen(false);
       setTitle("");
       setContent("");
-      toast.success("Announcement posted");
+      toast.success("Announcement posted & members notified");
     },
     onError: (e: Error) => toast.error(e.message),
   });

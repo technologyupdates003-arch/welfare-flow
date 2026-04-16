@@ -38,27 +38,53 @@ export default function ConversationList({ activeId, onSelect, onNewChat, onGrou
       }
       
       const conversationIds = participations.map(p => p.conversation_id);
-      console.log("Conversation IDs:", conversationIds);
       
-      // Get conversations - simplified query
       const { data: conversations, error: convError } = await supabase
         .from("conversations")
         .select("*")
         .in("id", conversationIds)
         .order("updated_at", { ascending: false });
       
-      console.log("Conversations:", conversations, "Error:", convError);
-      
       if (!conversations) return [];
       
-      // Add basic info without complex joins
-      const conversationsWithData = conversations.map(conv => ({
-        ...conv,
-        unreadCount: 0, // Simplified for now
-        lastMessage: null // Simplified for now
+      // For private chats, resolve the other participant's name
+      const conversationsWithData = await Promise.all(conversations.map(async (conv) => {
+        let displayName = conv.name;
+        let profilePicture: string | null = null;
+        
+        if (conv.type === "private") {
+          const { data: parts } = await supabase
+            .from("conversation_participants")
+            .select("user_id")
+            .eq("conversation_id", conv.id)
+            .neq("user_id", user.id);
+          
+          if (parts && parts.length > 0) {
+            const otherUserId = parts[0].user_id;
+            // Check if admin
+            const { data: roleData } = await supabase
+              .from("user_roles")
+              .select("role")
+              .eq("user_id", otherUserId)
+              .maybeSingle();
+            
+            if (roleData?.role === "admin") {
+              displayName = "Admin";
+            } else {
+              const { data: memberData } = await supabase
+                .from("members")
+                .select("name, profile_picture_url")
+                .eq("user_id", otherUserId)
+                .maybeSingle();
+              displayName = memberData?.name || "Unknown";
+              profilePicture = memberData?.profile_picture_url || null;
+            }
+          }
+        }
+        
+        return { ...conv, displayName, profilePicture, unreadCount: 0 };
       }));
       
-      console.log("Final conversations:", conversationsWithData);
       return conversationsWithData;
     },
     enabled: !!user,
@@ -139,15 +165,21 @@ export default function ConversationList({ activeId, onSelect, onNewChat, onGrou
             )}
           >
             <div className={cn(
-              "h-10 w-10 rounded-full flex items-center justify-center shrink-0",
+              "h-10 w-10 rounded-full flex items-center justify-center shrink-0 overflow-hidden",
               darkMode ? "bg-[#2A3942]" : "bg-secondary"
             )}>
-              {c.type === "group" ? <Users className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
+              {c.profilePicture ? (
+                <img src={c.profilePicture} alt="" className="h-10 w-10 rounded-full object-cover" />
+              ) : c.type === "group" ? (
+                <Users className="h-5 w-5" />
+              ) : (
+                <span className="text-sm font-bold">{(c.displayName || "?").charAt(0)}</span>
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between">
                 <p className="font-medium text-sm truncate">
-                  {c.name || (c.type === "group" ? "Group Chat" : "Private Chat")}
+                  {c.displayName || c.name || (c.type === "group" ? "Group Chat" : "Chat")}
                 </p>
                 <span className={cn("text-xs", darkMode ? "text-gray-400" : "text-muted-foreground")}>
                   {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
