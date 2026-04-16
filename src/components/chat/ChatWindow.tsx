@@ -200,7 +200,7 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
         <div className="flex flex-col gap-1">
           {messages?.map((m: any) => {
             const isAdmin = m.userRole === 'admin';
-            const senderName = isAdmin ? "Admin" : (m.members?.name || "Unknown User");
+            const senderName = isAdmin ? "Admin" : (m.resolvedName || m.members?.name || "Member");
             
             return (
               <MessageBubble
@@ -213,7 +213,7 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
                 replyTo={m.replyMessage ? { 
                   senderName: m.replyRole === 'admin' 
                     ? "Admin" 
-                    : (m.replyMessage.members?.name || "Unknown User"), 
+                    : (m.replyMessage.members?.name || "Member"), 
                   content: m.replyMessage.content 
                 } : null}
                 onReply={() => setReplyTo(m)}
@@ -223,7 +223,7 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
                 status={m.status}
                 onDelete={m.user_id === user?.id ? () => deleteMessage.mutate(m.id) : undefined}
                 isDeleted={m.status === "deleted"}
-                profilePicture={m.members?.profile_picture_url}
+                profilePicture={m.resolvedPicture || m.members?.profile_picture_url}
               />
             );
           })}
