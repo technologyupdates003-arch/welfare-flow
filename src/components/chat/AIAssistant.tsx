@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
+import { useAuth } from "@/lib/auth";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`;
 
@@ -12,9 +13,15 @@ type Msg = { role: "user" | "assistant"; content: string };
 
 const GREETING = "👋 Welcome back! I'm your AI assistant. I can help you with:\n\n- **Writing announcements** and event descriptions\n- **Checking contributions** — who paid, who didn't\n- **Member information** and stats\n- **Drafting SMS** messages\n- Any questions about your welfare group\n\nWhat would you like help with?";
 
+const SECRETARY_GREETING = "👋 Welcome! I'm your AI assistant for meeting minutes. I can help you:\n\n- **Draft meeting minutes** from your notes\n- **Format discussions** and decisions\n- **Organize action items** with clear assignments\n- **Summarize key points** from meetings\n- **Improve clarity** of your minutes\n\nJust tell me about your meeting or paste your notes!";
+
 export default function AIAssistant() {
+  const { role } = useAuth();
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Msg[]>([{ role: "assistant", content: GREETING }]);
+  const [messages, setMessages] = useState<Msg[]>([{ 
+    role: "assistant", 
+    content: role === "secretary" || role === "vice_secretary" ? SECRETARY_GREETING : GREETING 
+  }]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showGreeting, setShowGreeting] = useState(true);
@@ -29,6 +36,14 @@ export default function AIAssistant() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Update greeting when role changes
+  useEffect(() => {
+    setMessages([{ 
+      role: "assistant", 
+      content: role === "secretary" || role === "vice_secretary" ? SECRETARY_GREETING : GREETING 
+    }]);
+  }, [role]);
+
   const send = async () => {
     if (!input.trim() || isLoading) return;
     const userMsg: Msg = { role: "user", content: input };
@@ -39,14 +54,19 @@ export default function AIAssistant() {
 
     let assistantSoFar = "";
 
+    // Determine context type based on role
+    const contextType = (role === "secretary" || role === "vice_secretary") 
+      ? "secretary_assistant" 
+      : "admin_assistant";
+
     try {
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
-        body: JSON.stringify({ messages: newMessages, context_type: "admin_assistant" }),
+        body: JSON.stringify({ messages: newMessages, context_type: contextType }),
       });
 
       if (!resp.ok || !resp.body) {
@@ -100,7 +120,11 @@ export default function AIAssistant() {
       {/* Greeting tooltip */}
       {showGreeting && !open && (
         <div className="fixed bottom-24 right-20 z-50 bg-card border border-border rounded-xl shadow-lg p-3 max-w-[220px] animate-fade-in md:bottom-20">
-          <p className="text-xs">👋 Need help? I can assist with announcements, member data, and more!</p>
+          <p className="text-xs">
+            {role === "secretary" || role === "vice_secretary" 
+              ? "👋 Need help writing meeting minutes? I can assist!" 
+              : "👋 Need help? I can assist with announcements, member data, and more!"}
+          </p>
           <button onClick={() => setShowGreeting(false)} className="absolute -top-2 -right-2 bg-muted rounded-full p-0.5">
             <X className="h-3 w-3" />
           </button>

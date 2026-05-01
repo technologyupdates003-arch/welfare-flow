@@ -28,6 +28,9 @@ export default function Events() {
     related_member_id: "",
     contribution_amount: "",
     status: "active",
+    scheduled_date: "",
+    rescheduled_date: "",
+    reschedule_reason: "",
   });
 
   const { data: events, isLoading } = useQuery({
@@ -61,6 +64,7 @@ export default function Events() {
         related_member_id: form.related_member_id || null,
         contribution_amount: Number(form.contribution_amount) || 0,
         status: form.status,
+        scheduled_date: form.scheduled_date ? new Date(form.scheduled_date).toISOString() : null,
         created_by: user!.id,
       });
       if (error) throw error;
@@ -69,7 +73,7 @@ export default function Events() {
       queryClient.invalidateQueries({ queryKey: ["events"] });
       toast.success("Event created successfully");
       setOpen(false);
-      setForm({ title: "", description: "", event_type: "funeral", departed_name: "", relationship: "member", related_member_id: "", contribution_amount: "", status: "active" });
+      setForm({ title: "", description: "", event_type: "funeral", departed_name: "", relationship: "member", related_member_id: "", contribution_amount: "", status: "active", scheduled_date: "", rescheduled_date: "", reschedule_reason: "" });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -157,6 +161,14 @@ export default function Events() {
                 <Label>Contribution Amount (KES)</Label>
                 <Input type="number" value={form.contribution_amount} onChange={e => setForm(f => ({ ...f, contribution_amount: e.target.value }))} placeholder="0" />
               </div>
+              <div>
+                <Label>Scheduled Date (Optional)</Label>
+                <Input 
+                  type="datetime-local" 
+                  value={form.scheduled_date} 
+                  onChange={e => setForm(f => ({ ...f, scheduled_date: e.target.value }))} 
+                />
+              </div>
               <Button className="w-full" onClick={() => createEvent.mutate()} disabled={!form.title || createEvent.isPending}>
                 {createEvent.isPending ? "Creating..." : "Create Event"}
               </Button>
@@ -181,7 +193,8 @@ export default function Events() {
                   <TableHead>Related Member</TableHead>
                   <TableHead>Amount (KES)</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Date</TableHead>
+                  <TableHead>Scheduled Date</TableHead>
+                  <TableHead>Date Created</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -194,6 +207,14 @@ export default function Events() {
                     <TableCell className="text-sm">{ev.members?.name || "-"}</TableCell>
                     <TableCell className="text-sm font-medium">{Number(ev.contribution_amount).toLocaleString()}</TableCell>
                     <TableCell><Badge variant={statusColor(ev.status)}>{ev.status}</Badge></TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {ev.scheduled_date ? format(new Date(ev.scheduled_date), "dd MMM yyyy") : "-"}
+                      {ev.rescheduled_date && (
+                        <div className="text-orange-600 text-xs mt-1">
+                          Rescheduled: {format(new Date(ev.rescheduled_date), "dd MMM yyyy")}
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{format(new Date(ev.created_at), "dd MMM yyyy")}</TableCell>
                     <TableCell>
                       {ev.status === "active" && (

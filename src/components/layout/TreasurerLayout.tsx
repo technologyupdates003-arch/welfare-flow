@@ -1,0 +1,218 @@
+import { ReactNode, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Bell, Moon, Sun, LogOut, LayoutDashboard, Wallet, FileText, BarChart3, Settings, CreditCard, Menu, X } from "lucide-react";
+import { useTheme } from "next-themes";
+import { cn } from "@/lib/utils";
+import FloatingChatBubble from "@/components/chat/FloatingChatBubble";
+
+interface TreasurerLayoutProps {
+  children: ReactNode;
+}
+
+export default function TreasurerLayout({ children }: TreasurerLayoutProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut, roles } = useAuth();
+  const { theme, setTheme } = useTheme();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const menuItems = [
+    { to: "/treasurer", icon: LayoutDashboard, label: "Dashboard", exact: true },
+    { to: "/treasurer/contributions", icon: CreditCard, label: "Contributions" },
+    { to: "/treasurer/expenses", icon: Wallet, label: "Expenses & Payouts" },
+    { to: "/treasurer/memos", icon: FileText, label: "Memos" },
+    { to: "/treasurer/documents", icon: FileText, label: "Documents" },
+    { to: "/treasurer/reports", icon: BarChart3, label: "Reports" },
+    { to: "/treasurer/settings", icon: Settings, label: "Settings" },
+  ];
+
+  const isActive = (path: string, exact?: boolean) => {
+    if (exact) {
+      return location.pathname === path;
+    }
+    return location.pathname.startsWith(path);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login");
+  };
+
+  return (
+    <div className="flex h-screen bg-[#F9FAFB]">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* Sidebar - Collapsible on mobile, compact on desktop */}
+      <aside className={cn(
+        "w-[160px] bg-[#0B1F3A] text-white flex flex-col fixed h-full z-50",
+        "lg:relative lg:z-auto",
+        "transform transition-transform duration-200 ease-in-out lg:transform-none",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      )}>
+        {/* Logo/Brand - More compact */}
+        <div className="p-3 border-b border-white/10 flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold">KHCWW</h1>
+            <p className="text-xs text-orange-400 mt-1">Treasurer</p>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="lg:hidden text-white hover:bg-white/10"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Navigation Menu - More compact */}
+        <nav className="flex-1 py-3 px-2 space-y-1">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.to, item.exact);
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`flex items-center gap-2 px-2 py-2 rounded-lg transition-all text-sm ${
+                  active
+                    ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg"
+                    : "text-white/70 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                <span className="font-medium">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Bottom Profile Section */}
+        <div className="p-3 border-t border-white/10">
+          <div className="flex items-center gap-2 mb-2">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="bg-gradient-to-br from-orange-500 to-orange-600 text-white text-xs">
+                {user?.email?.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium truncate">{user?.email}</p>
+              <p className="text-xs text-orange-400">Treasurer</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleSignOut}
+            className="w-full justify-start text-white/70 hover:text-white hover:bg-white/5 text-xs"
+          >
+            <LogOut className="h-3 w-3 mr-2" />
+            Logout
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="flex-1 ml-0 lg:ml-[160px] flex flex-col">
+        {/* Top Navbar - Reduced height and padding */}
+        <header className="h-[60px] bg-white border-b border-[#E5E7EB] flex items-center justify-between px-2 lg:px-3 fixed top-0 right-0 left-0 lg:left-[160px] z-10">
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <h2 className="text-lg lg:text-xl font-bold text-[#111827]">
+              {menuItems.find(item => isActive(item.to, item.exact))?.label || "Dashboard"}
+            </h2>
+          </div>
+          
+          <div className="flex items-center gap-2 lg:gap-4">
+            {/* Dashboard Switcher Buttons - Always visible */}
+            <div className="flex items-center gap-1 md:gap-2 border-r border-[#E5E7EB] pr-2 md:pr-3">
+              <Link to="/treasurer">
+                <Button 
+                  variant={location.pathname.startsWith("/treasurer") ? "default" : "outline"} 
+                  size="sm"
+                  className="text-xs px-2 py-1"
+                >
+                  Treasurer
+                </Button>
+              </Link>
+              {roles.includes("admin") && (
+                <Link to="/admin">
+                  <Button 
+                    variant={location.pathname.startsWith("/admin") ? "default" : "outline"} 
+                    size="sm"
+                    className="text-xs px-2 py-1"
+                  >
+                    Admin
+                  </Button>
+                </Link>
+              )}
+              {roles.includes("super_admin") && (
+                <Link to="/super-admin">
+                  <Button 
+                    variant={location.pathname.startsWith("/super-admin") ? "default" : "outline"} 
+                    size="sm"
+                    className="text-xs px-2 py-1"
+                  >
+                    Super Admin
+                  </Button>
+                </Link>
+              )}
+              <Link to="/member">
+                <Button 
+                  variant={location.pathname.startsWith("/member") ? "default" : "outline"} 
+                  size="sm"
+                  className="text-xs px-2 py-1"
+                >
+                  Member
+                </Button>
+              </Link>
+            </div>
+
+            {/* Notifications */}
+            <Button variant="ghost" size="icon" className="relative">
+              <Bell className="h-5 w-5" />
+              <span className="absolute top-1 right-1 h-2 w-2 bg-orange-500 rounded-full"></span>
+            </Button>
+
+            {/* Theme Toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            >
+              {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
+
+            {/* Profile Avatar */}
+            <Avatar className="h-9 w-9 cursor-pointer">
+              <AvatarFallback className="bg-gradient-to-br from-orange-500 to-orange-600 text-white">
+                {user?.email?.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+        </header>
+
+        {/* Main Content - Reduced padding and margin */}
+        <main className="flex-1 mt-[60px] p-2 lg:p-4 overflow-auto">
+          {children}
+        </main>
+      </div>
+
+      {/* Floating Chat Bubble */}
+      <FloatingChatBubble />
+    </div>
+  );
+}

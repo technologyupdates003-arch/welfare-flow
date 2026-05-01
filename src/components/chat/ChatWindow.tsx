@@ -32,8 +32,7 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
         .from("messages")
         .select(`
           *, 
-          members(name, profile_picture_url),
-          message_reactions(*)
+          members!messages_member_id_fkey(name, profile_picture_url)
         `)
         .order("created_at", { ascending: true })
         .limit(200);
@@ -44,7 +43,7 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
       const { data } = await q;
       if (!data) return [];
 
-      // Get roles and member names for all user_ids in messages
+      // Get roles for all user_ids in messages
       const userIds = [...new Set(data.map((m: any) => m.user_id))];
       const { data: roles } = await supabase
         .from("user_roles")
@@ -52,12 +51,14 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
         .in("user_id", userIds);
       const roleMap = new Map((roles || []).map((r: any) => [r.user_id, r.role]));
 
-      // Also fetch member names by user_id for cases where member_id is null (e.g. admin)
-      const { data: membersByUserId } = await supabase
+      // Fetch ALL members to get names by user_id
+      const { data: allMembers } = await supabase
         .from("members")
         .select("user_id, name, profile_picture_url")
         .in("user_id", userIds);
-      const memberByUserIdMap = new Map((membersByUserId || []).map((m: any) => [m.user_id, m]));
+      
+      // Create member map
+      const memberByUserIdMap = new Map((allMembers || []).map((m: any) => [m.user_id, m]));
 
       // Get reply messages if needed
       const replyIds = data.filter((m: any) => m.reply_to_id).map((m: any) => m.reply_to_id);
@@ -65,29 +66,53 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
       if (replyIds.length > 0) {
         const { data: replies } = await supabase
           .from("messages")
-          .select("id, content, members(name), user_id")
+          .select("id, content, user_id, members!messages_member_id_fkey(name)")
           .in("id", replyIds);
-        replyMap = new Map((replies || []).map((r: any) => [r.id, r]));
+        
+        // Enrich reply messages with member names from our map
+        replyMap = new Map((replies || []).map((r: any) => {
+          const memberData = memberByUserIdMap.get(r.user_id);
+          return [r.id, {
+            ...r,
+            resolvedName: memberData?.name || r.members?.name || "Unknown User"
+          }];
+        }));
       }
+
+      // Get reactions
+      const messageIds = data.map((m: any) => m.id);
+      const { data: reactions } = await supabase
+        .from("message_reactions")
+        .select("*")
+        .in("message_id", messageIds);
+      const reactionsMap = new Map<string, any[]>();
+      (reactions || []).forEach((r: any) => {
+        if (!reactionsMap.has(r.message_id)) reactionsMap.set(r.message_id, []);
+        reactionsMap.get(r.message_id)!.push(r);
+      });
 
       return data.map((m: any) => {
         const role = roleMap.get(m.user_id) || "member";
-        // Resolve name: from joined members table, or from user_id lookup, or "Unknown"
-        const resolvedName = m.members?.name 
-          || memberByUserIdMap.get(m.user_id)?.name 
-          || null;
-        const resolvedPicture = m.members?.profile_picture_url
-          || memberByUserIdMap.get(m.user_id)?.profile_picture_url
-          || null;
+        // Get name from member lookup by user_id (most reliable)
+        const memberData = memberByUserIdMap.get(m.user_id);
+        const resolvedName = memberData?.name || m.members?.name || "Unknown User";
+        const resolvedPicture = memberData?.profile_picture_url || m.members?.profile_picture_url || null;
+        
+        // Debug logging
+        if (!memberData) {
+          console.log("No member data for user_id:", m.user_id, "Available members:", Array.from(memberByUserIdMap.keys()));
+        }
+        
+        const replyMsg = m.reply_to_id ? replyMap.get(m.reply_to_id) : null;
+        
         return {
           ...m,
           userRole: role,
           resolvedName,
           resolvedPicture,
-          replyMessage: m.reply_to_id ? replyMap.get(m.reply_to_id) : null,
-          replyRole: m.reply_to_id && replyMap.get(m.reply_to_id)
-            ? roleMap.get(replyMap.get(m.reply_to_id).user_id) || "member"
-            : null,
+          message_reactions: reactionsMap.get(m.id) || [],
+          replyMessage: replyMsg,
+          replyRole: replyMsg ? (roleMap.get(replyMsg.user_id) || "member") : null,
         };
       });
     },
@@ -200,7 +225,8 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
         <div className="flex flex-col gap-1">
           {messages?.map((m: any) => {
             const isAdmin = m.userRole === 'admin';
-            const senderName = isAdmin ? "Admin" : (m.resolvedName || m.members?.name || "Member");
+            // Always use resolvedName which is fetched from members table by user_id
+            const senderName = isAdmin ? "Admin" : m.resolvedName;
             
             return (
               <MessageBubble
@@ -213,7 +239,7 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
                 replyTo={m.replyMessage ? { 
                   senderName: m.replyRole === 'admin' 
                     ? "Admin" 
-                    : (m.replyMessage.members?.name || "Member"), 
+                    : m.replyMessage.resolvedName, 
                   content: m.replyMessage.content 
                 } : null}
                 onReply={() => setReplyTo(m)}
@@ -223,7 +249,7 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
                 status={m.status}
                 onDelete={m.user_id === user?.id ? () => deleteMessage.mutate(m.id) : undefined}
                 isDeleted={m.status === "deleted"}
-                profilePicture={m.resolvedPicture || m.members?.profile_picture_url}
+                profilePicture={m.resolvedPicture}
               />
             );
           })}
@@ -237,7 +263,7 @@ export default function ChatWindow({ conversationId, darkMode = false }: ChatWin
             <span className="font-semibold">Replying to {
               replyTo.userRole === 'admin' 
                 ? "Admin" 
-                : (replyTo.members?.name || "Unknown User")
+                : replyTo.resolvedName
             }: </span>
             <span className={darkMode ? "text-gray-400" : "text-muted-foreground"}>{replyTo.content}</span>
           </div>

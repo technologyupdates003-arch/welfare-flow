@@ -12,6 +12,8 @@ export default function MemberDownloads() {
   const { user, memberId } = useAuth();
   const [showConstitution, setShowConstitution] = useState(false);
   const [showStatement, setShowStatement] = useState(false);
+  const [showMinute, setShowMinute] = useState(false);
+  const [selectedMinute, setSelectedMinute] = useState<any>(null);
   const [statementHtml, setStatementHtml] = useState("");
 
   const { data: member } = useQuery({
@@ -30,6 +32,52 @@ export default function MemberDownloads() {
       return data || [];
     },
     enabled: !!memberId,
+  });
+
+  const { data: publishedMinutes = [] } = useQuery({
+    queryKey: ["published-minutes", user?.id],
+    queryFn: async () => {
+      // First get all approved minutes
+      const { data: allMinutes } = await supabase
+        .from("meeting_minutes")
+        .select("*")
+        .eq("status", "approved")
+        .order("meeting_date", { ascending: false });
+
+      if (!allMinutes) return [];
+
+      // Get current user's roles
+      const { data: userRoles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user!.id);
+
+      const hasRole = userRoles && userRoles.length > 0;
+      
+      // Filter minutes based on meeting type and user role
+      return allMinutes.filter((minute: any) => {
+        if (minute.meeting_type === "executive") {
+          // For executive meetings, check if user has a role or is in visible_to_members
+          if (!hasRole) return false;
+          
+          // If visible_to_members is empty, all role holders can see it
+          if (!minute.visible_to_members || minute.visible_to_members.length === 0) {
+            return true;
+          }
+          
+          // Get current user's member name
+          const memberName = member?.name;
+          if (!memberName) return false;
+          
+          // Check if user is in visible_to_members list
+          return minute.visible_to_members.includes(memberName);
+        }
+        
+        // General meetings are visible to all
+        return true;
+      });
+    },
+    enabled: !!user,
   });
 
   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -236,6 +284,77 @@ ol,ul{padding-left:25px}li{margin-bottom:6px}
     toast.success("Constitution downloaded!");
   };
 
+  const generateMinuteHtml = (minute: any) => {
+    return `<!DOCTYPE html><html><head><title>${minute.title}</title>
+    <style>body{font-family:Arial,sans-serif;margin:40px;line-height:1.8;max-width:900px;margin:0 auto;padding:40px}
+    .header{text-align:center;margin-bottom:40px;border-bottom:3px solid #16a34a;padding-bottom:20px}
+    .header h1{margin:0;color:#16a34a;font-size:28px}.header h2{margin:10px 0;color:#333;font-size:20px}
+    .meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:20px 0;padding:15px;background:#f9fafb;border-radius:8px}
+    .meta-item{font-size:14px}.meta-label{font-weight:bold;color:#666}
+    .section{margin:30px 0}.section h3{color:#16a34a;border-bottom:2px solid #e5e7eb;padding-bottom:8px;margin-bottom:15px;font-size:18px}
+    .section-content{padding-left:15px;white-space:pre-wrap;line-height:1.8}
+    .attendees{display:flex;flex-wrap:wrap;gap:8px;padding-left:15px}
+    .attendee-badge{background:#e5e7eb;padding:6px 12px;border-radius:20px;font-size:13px}
+    .signatures{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:60px;padding-top:30px;border-top:2px solid #e5e7eb}
+    .signature-block{text-align:center}
+    .signature-img{max-width:200px;max-height:80px;margin:10px auto;display:block}
+    .signature-line{border-top:2px solid #333;margin:20px auto 10px;width:200px}
+    .signature-name{font-weight:bold;margin-top:5px}
+    .signature-title{font-size:12px;color:#666}
+    @media print{body{margin:20px}}</style></head><body>
+    <div class="header">
+    <h1>KIRINYAGA HEALTHCARE WORKERS' WELFARE</h1>
+    <h2>Meeting Minutes</h2>
+    <h3>${minute.title}</h3>
+    </div>
+    <div class="meta">
+    <div class="meta-item"><span class="meta-label">Meeting Date:</span> ${new Date(minute.meeting_date).toLocaleDateString()}</div>
+    <div class="meta-item"><span class="meta-label">Meeting Type:</span> ${minute.meeting_type.replace('_', ' ').toUpperCase()}</div>
+    <div class="meta-item"><span class="meta-label">Status:</span> ${minute.status.toUpperCase()}</div>
+    ${minute.next_meeting_date ? `<div class="meta-item"><span class="meta-label">Next Meeting:</span> ${new Date(minute.next_meeting_date).toLocaleDateString()}</div>` : ''}
+    </div>
+    ${minute.attendees && minute.attendees.length > 0 ? `<div class="section"><h3>Attendees</h3>
+    <div class="attendees">${minute.attendees.map((a: string) => `<span class="attendee-badge">${a}</span>`).join('')}</div></div>` : ''}
+    ${minute.agenda ? `<div class="section"><h3>Agenda</h3><div class="section-content">${minute.agenda}</div></div>` : ''}
+    ${minute.discussions ? `<div class="section"><h3>Discussions</h3><div class="section-content">${minute.discussions}</div></div>` : ''}
+    ${minute.decisions ? `<div class="section"><h3>Decisions Made</h3><div class="section-content">${minute.decisions}</div></div>` : ''}
+    ${minute.action_items ? `<div class="section"><h3>Action Items</h3><div class="section-content">${minute.action_items}</div></div>` : ''}
+    <div class="signatures">
+      <div class="signature-block">
+        ${minute.chairperson_signature_url ? `<img src="${minute.chairperson_signature_url}" alt="Chairperson Signature" class="signature-img" />` : '<div class="signature-line"></div>'}
+        <div class="signature-name">${minute.chairperson_name || '_____________________'}</div>
+        <div class="signature-title">Chairperson</div>
+      </div>
+      <div class="signature-block">
+        ${minute.secretary_signature_url ? `<img src="${minute.secretary_signature_url}" alt="Secretary Signature" class="signature-img" />` : '<div class="signature-line"></div>'}
+        <div class="signature-name">${minute.secretary_name || '_____________________'}</div>
+        <div class="signature-title">Secretary</div>
+      </div>
+    </div>
+    <p style="margin-top:60px;text-align:center;color:#666;font-size:12px;border-top:1px solid #e5e7eb;padding-top:20px">
+    Generated from KIRINYAGA HCWW System | ${new Date().toLocaleDateString()}</p>
+    </body></html>`;
+  };
+
+  const viewMinute = (minute: any) => {
+    setSelectedMinute(minute);
+    setShowMinute(true);
+  };
+
+  const downloadMinute = (minute: any) => {
+    const html = generateMinuteHtml(minute);
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `minutes-${minute.title.replace(/\s+/g, '-')}-${minute.meeting_date}.html`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    toast.success("Minutes downloaded!");
+  };
+
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-display font-bold">Downloads</h2>
@@ -278,6 +397,40 @@ ol,ul{padding-left:25px}li{margin-bottom:6px}
         </CardContent>
       </Card>
 
+      {/* Meeting Minutes */}
+      {publishedMinutes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" /> Meeting Minutes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-3">Approved meeting minutes available for download</p>
+            <div className="space-y-2">
+              {publishedMinutes.map((minute: any) => (
+                <div key={minute.id} className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent/50 transition">
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">{minute.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(minute.meeting_date).toLocaleDateString()} • {minute.meeting_type.replace('_', ' ')}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => viewMinute(minute)}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => downloadMinute(minute)}>
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Statement Preview Dialog */}
       <Dialog open={showStatement} onOpenChange={setShowStatement}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
@@ -299,6 +452,26 @@ ol,ul{padding-left:25px}li{margin-bottom:6px}
           </DialogHeader>
           <div dangerouslySetInnerHTML={{ __html: constitutionHtml }} />
           <Button onClick={downloadConstitution} className="w-full"><Download className="h-4 w-4 mr-2" /> Download</Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Minute Preview Dialog */}
+      <Dialog open={showMinute} onOpenChange={setShowMinute}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedMinute?.title}</DialogTitle>
+            <DialogDescription>
+              {selectedMinute && new Date(selectedMinute.meeting_date).toLocaleDateString()}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedMinute && (
+            <div dangerouslySetInnerHTML={{ __html: generateMinuteHtml(selectedMinute) }} />
+          )}
+          {selectedMinute && (
+            <Button onClick={() => downloadMinute(selectedMinute)} className="w-full">
+              <Download className="h-4 w-4 mr-2" /> Download
+            </Button>
+          )}
         </DialogContent>
       </Dialog>
     </div>

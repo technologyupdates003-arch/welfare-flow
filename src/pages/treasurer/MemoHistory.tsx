@@ -1,0 +1,374 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Eye, Download, RotateCcw, Trash2, Search, Plus } from "lucide-react";
+import { toast } from "sonner";
+
+export default function MemoHistory() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedMemo, setSelectedMemo] = useState<any>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  // Fetch all memos
+  const { data: memos = [], isLoading } = useQuery({
+    queryKey: ["memos"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("memos")
+        .select(`
+          *,
+          memo_recipients (
+            id,
+            delivered_at,
+            seen_at,
+            downloaded_at,
+            members (name, email)
+          )
+        `)
+        .order("created_at", { ascending: false });
+      return data || [];
+    },
+  });
+
+  // Delete memo mutation
+  const deleteMemo = useMutation({
+    mutationFn: async (memoId: string) => {
+      const { error } = await supabase
+        .from("memos")
+        .delete()
+        .eq("id", memoId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["memos"] });
+      toast.success("Memo deleted successfully");
+    },
+    onError: (error: any) => {
+      toast.error(error.message);
+    },
+  });
+
+  // Resend memo mutation
+  const resendMemo = useMutation({
+    mutationFn: async (memoId: string) => {
+      const { error } = await supabase
+        .from("memos")
+        .update({
+          status: "sent",
+          sent_at: new Date().toISOString(),
+        })
+        .eq("id", memoId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["memos"] });
+      toast.success("Memo resent successfully");
+    },
+    onError: (error: any) => {
+      toast.error(error.message);
+    },
+  });
+
+  const getCategoryLabel = (cat: string) => {
+    const labels: Record<string, string> = {
+      financial_notice: "Financial Notice",
+      contribution_reminder: "Contribution Reminder",
+      penalty_notice: "Penalty Notice",
+      payout_notification: "Payout Notification",
+      general_communication: "General Communication",
+    };
+    return labels[cat] || cat;
+  };
+
+  const getStatusBadge = (status: string) => {
+    if (status === "draft") {
+      return <Badge variant="secondary">Draft</Badge>;
+    }
+    return <Badge className="bg-green-100 text-green-800">Sent</Badge>;
+  };
+
+  const getRecipientStats = (memo: any) => {
+    const recipients = memo.memo_recipients || [];
+    const delivered = recipients.filter((r: any) => r.delivered_at).length;
+    const seen = recipients.filter((r: any) => r.seen_at).length;
+    const downloaded = recipients.filter((r: any) => r.downloaded_at).length;
+
+    return { total: recipients.length, delivered, seen, downloaded };
+  };
+
+  const filteredMemos = memos.filter(
+    (memo) =>
+      memo.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      memo.reference_number.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold text-[#111827]">Memo History</h2>
+        <p className="text-sm text-[#6B7280] mt-1">
+          View, track, and manage all memos
+        </p>
+      </div>
+
+      {/* Create Memo Button */}
+      <Button
+        onClick={() => navigate("/treasurer/memos/create")}
+        className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        Create New Memo
+      </Button>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-3 h-4 w-4 text-[#6B7280]" />
+        <Input
+          placeholder="Search by title or reference number..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10 border-[#E5E7EB]"
+        />
+      </div>
+
+      {/* Memos Table */}
+      <Card className="bg-white rounded-2xl shadow-sm border border-[#E5E7EB]">
+        <CardContent className="p-0">
+          {filteredMemos.length === 0 ? (
+            <div className="text-center py-12 text-[#6B7280]">
+              <p>No memos found</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[#E5E7EB]">
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-[#6B7280]">
+                      Reference
+                    </th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-[#6B7280]">
+                      Title
+                    </th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-[#6B7280]">
+                      Category
+                    </th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-[#6B7280]">
+                      Date Sent
+                    </th>
+                    <th className="text-center py-3 px-4 text-sm font-semibold text-[#6B7280]">
+                      Status
+                    </th>
+                    <th className="text-center py-3 px-4 text-sm font-semibold text-[#6B7280]">
+                      Tracking
+                    </th>
+                    <th className="text-center py-3 px-4 text-sm font-semibold text-[#6B7280]">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredMemos.map((memo: any) => {
+                    const stats = getRecipientStats(memo);
+                    return (
+                      <tr
+                        key={memo.id}
+                        className="border-b border-[#E5E7EB] last:border-0 hover:bg-[#F9FAFB]"
+                      >
+                        <td className="py-3 px-4">
+                          <p className="text-sm font-medium text-[#111827]">
+                            {memo.reference_number}
+                          </p>
+                        </td>
+                        <td className="py-3 px-4">
+                          <p className="text-sm text-[#111827]">{memo.title}</p>
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge variant="outline">
+                            {getCategoryLabel(memo.category)}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-[#6B7280]">
+                          {memo.sent_at
+                            ? new Date(memo.sent_at).toLocaleDateString()
+                            : "-"}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          {getStatusBadge(memo.status)}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <div className="flex items-center justify-center gap-2 text-xs">
+                            <span className="text-[#6B7280]">
+                              {stats.delivered}/{stats.total}
+                            </span>
+                            <span className="text-green-600 font-medium">
+                              {stats.seen}
+                            </span>
+                            <span className="text-blue-600 font-medium">
+                              {stats.downloaded}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setSelectedMemo(memo);
+                                setPreviewOpen(true);
+                              }}
+                              title="View"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {memo.status === "draft" && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => deleteMemo.mutate(memo.id)}
+                                title="Delete"
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            )}
+                            {memo.status === "sent" && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => resendMemo.mutate(memo.id)}
+                                title="Resend"
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title="Download PDF"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Preview Dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedMemo?.title}</DialogTitle>
+          </DialogHeader>
+          {selectedMemo && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-[#6B7280] font-medium">Reference Number</p>
+                  <p className="text-[#111827]">{selectedMemo.reference_number}</p>
+                </div>
+                <div>
+                  <p className="text-[#6B7280] font-medium">Category</p>
+                  <p className="text-[#111827]">{getCategoryLabel(selectedMemo.category)}</p>
+                </div>
+                <div>
+                  <p className="text-[#6B7280] font-medium">Status</p>
+                  <p className="text-[#111827]">{getStatusBadge(selectedMemo.status)}</p>
+                </div>
+                <div>
+                  <p className="text-[#6B7280] font-medium">Date Sent</p>
+                  <p className="text-[#111827]">
+                    {selectedMemo.sent_at
+                      ? new Date(selectedMemo.sent_at).toLocaleDateString()
+                      : "-"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-[#F9FAFB] p-4 rounded-lg border border-[#E5E7EB]">
+                <p className="text-sm font-medium text-[#6B7280] mb-2">Content</p>
+                <p className="text-sm text-[#111827] whitespace-pre-wrap">
+                  {selectedMemo.content}
+                </p>
+              </div>
+
+              {selectedMemo.memo_recipients && selectedMemo.memo_recipients.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-[#6B7280] mb-2">
+                    Recipients ({selectedMemo.memo_recipients.length})
+                  </p>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {selectedMemo.memo_recipients.map((recipient: any) => (
+                      <div
+                        key={recipient.id}
+                        className="flex items-center justify-between bg-white p-2 rounded border border-[#E5E7EB] text-sm"
+                      >
+                        <span className="text-[#111827]">{recipient.members?.name}</span>
+                        <div className="flex gap-2">
+                          {recipient.delivered_at && (
+                            <Badge className="bg-blue-100 text-blue-800 text-xs">
+                              Delivered
+                            </Badge>
+                          )}
+                          {recipient.seen_at && (
+                            <Badge className="bg-green-100 text-green-800 text-xs">
+                              Seen
+                            </Badge>
+                          )}
+                          {recipient.downloaded_at && (
+                            <Badge className="bg-purple-100 text-purple-800 text-xs">
+                              Downloaded
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setPreviewOpen(false)}
+                  className="flex-1"
+                >
+                  Close
+                </Button>
+                <Button className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white">
+                  <Download className="h-4 w-4 mr-2" />
+                  Download PDF
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

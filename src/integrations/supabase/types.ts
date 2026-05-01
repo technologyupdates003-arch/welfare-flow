@@ -306,6 +306,57 @@ export type Database = {
         }
         Relationships: []
       }
+      meeting_minutes: {
+        Row: {
+          action_items: string | null
+          agenda: string | null
+          attendees: string[] | null
+          created_at: string
+          created_by: string
+          decisions: string | null
+          discussions: string | null
+          id: string
+          meeting_date: string
+          meeting_type: string
+          next_meeting_date: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          action_items?: string | null
+          agenda?: string | null
+          attendees?: string[] | null
+          created_at?: string
+          created_by: string
+          decisions?: string | null
+          discussions?: string | null
+          id?: string
+          meeting_date: string
+          meeting_type?: string
+          next_meeting_date?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          action_items?: string | null
+          agenda?: string | null
+          attendees?: string[] | null
+          created_at?: string
+          created_by?: string
+          decisions?: string | null
+          discussions?: string | null
+          id?: string
+          meeting_date?: string
+          meeting_type?: string
+          next_meeting_date?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       message_reactions: {
         Row: {
           created_at: string
@@ -682,6 +733,95 @@ export type Database = {
         }
         Relationships: []
       }
+      meeting_minutes: {
+        Row: {
+          id: string
+          created_by: string
+          meeting_date: string
+          meeting_type: string
+          title: string
+          attendees: string[] | null
+          agenda: string | null
+          decisions: string | null
+          action_items: string | null
+          next_meeting_date: string | null
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          created_by: string
+          meeting_date: string
+          meeting_type?: string
+          title: string
+          attendees?: string[] | null
+          agenda?: string | null
+          decisions?: string | null
+          action_items?: string | null
+          next_meeting_date?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          created_by?: string
+          meeting_date?: string
+          meeting_type?: string
+          title?: string
+          attendees?: string[] | null
+          agenda?: string | null
+          decisions?: string | null
+          action_items?: string | null
+          next_meeting_date?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      action_items: {
+        Row: {
+          id: string
+          minutes_id: string
+          description: string
+          assigned_to: string | null
+          due_date: string | null
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          minutes_id: string
+          description: string
+          assigned_to?: string | null
+          due_date?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          minutes_id?: string
+          description?: string
+          assigned_to?: string | null
+          due_date?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "action_items_minutes_id_fkey"
+            columns: ["minutes_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_minutes"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -708,7 +848,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "member"
+      app_role: "admin" | "member" | "chairperson" | "vice_chairperson" | "secretary" | "vice_secretary" | "patron"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -836,7 +976,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "member"],
+      app_role: ["admin", "member", "chairperson", "vice_chairperson", "secretary", "vice_secretary", "patron"],
     },
   },
 } as const

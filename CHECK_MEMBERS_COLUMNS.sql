@@ -1,0 +1,7 @@
+-- Check what columns actually exist in members table
+SELECT column_name, data_type FROM information_schema.columns 
+WHERE table_name = 'members' 
+ORDER BY ordinal_position;
+
+-- Show first few rows
+SELECT * FROM members LIMIT 5;

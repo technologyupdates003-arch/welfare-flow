@@ -1,0 +1,338 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Database, Eye, Download, Search, Filter, Loader2, Calendar,
+  User, Activity, Shield, MessageSquare, Lock
+} from "lucide-react";
+
+export default function AuditLogs() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState("all");
+
+  // Get audit logs
+  const { data: auditLogs = [], isLoading } = useQuery({
+    queryKey: ["audit-logs-full"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("audit_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      return data || [];
+    },
+    refetchInterval: 30000,
+  });
+
+  // Get member access logs
+  const { data: memberAccessLogs = [] } = useQuery({
+    queryKey: ["member-access-logs-full"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("member_access_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      return data || [];
+    },
+    refetchInterval: 30000,
+  });
+
+  // Get system logs
+  const { data: systemLogs = [] } = useQuery({
+    queryKey: ["system-logs-audit"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("system_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      return data || [];
+    },
+    refetchInterval: 30000,
+  });
+
+  const filteredAccessLogs = memberAccessLogs.filter(log =>
+    log.access_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    log.reason?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const exportLogs = () => {
+    const csvContent = "data:text/csv;charset=utf-8," + 
+      "Type,Action,Timestamp,Details\n" +
+      memberAccessLogs.map(log => 
+        `${log.access_type},${log.reason || "N/A"},${new Date(log.created_at).toLocaleString()},${log.member_id}`
+      ).join("\n");
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `audit_logs_${new Date().toISOString()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <div className="space-y-6 p-6">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-foreground flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
+                <Database className="h-7 w-7 text-foreground" />
+              </div>
+              Audit Logs
+            </h1>
+            <p className="text-muted-foreground mt-2">Complete system audit trail and activity logs</p>
+          </div>
+          <Button onClick={exportLogs} className="">
+            <Download className="h-4 w-4 mr-2" />
+            Export Logs
+          </Button>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card className="bg-gradient-to-br from-blue-600 to-blue-700 border-0 text-foreground">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm font-medium text-blue-100">Total Access Logs</CardTitle>
+                  <div className="text-3xl font-bold mt-2">{memberAccessLogs.length}</div>
+                </div>
+                <Eye className="h-8 w-8 text-foreground/70" />
+              </div>
+            </CardHeader>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-600 to-green-700 border-0 text-foreground">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm font-medium text-green-100">System Logs</CardTitle>
+                  <div className="text-3xl font-bold mt-2">{systemLogs.length}</div>
+                </div>
+                <Activity className="h-8 w-8 text-foreground/70" />
+              </div>
+            </CardHeader>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-orange-600 to-orange-700 border-0 text-foreground">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm font-medium text-orange-100">Audit Entries</CardTitle>
+                  <div className="text-3xl font-bold mt-2">{auditLogs.length}</div>
+                </div>
+                <Shield className="h-8 w-8 text-foreground/70" />
+              </div>
+            </CardHeader>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-600 to-purple-700 border-0 text-foreground">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm font-medium text-purple-100">Today's Activity</CardTitle>
+                  <div className="text-3xl font-bold mt-2">
+                    {memberAccessLogs.filter(log => {
+                      const logDate = new Date(log.created_at);
+                      const today = new Date();
+                      return logDate.toDateString() === today.toDateString();
+                    }).length}
+                  </div>
+                </div>
+                <Calendar className="h-8 w-8 text-foreground/70" />
+              </div>
+            </CardHeader>
+          </Card>
+        </div>
+
+        {/* Main Tabs */}
+        <Tabs defaultValue="access" className="space-y-6">
+          <TabsList className="bg-card border border-border">
+            <TabsTrigger value="access" className="data-[state=active]:bg-purple-600 data-[state=active]:text-foreground">
+              <Eye className="h-4 w-4 mr-2" />
+              Access Logs
+            </TabsTrigger>
+            <TabsTrigger value="system" className="data-[state=active]:bg-purple-600 data-[state=active]:text-foreground">
+              <Activity className="h-4 w-4 mr-2" />
+              System Logs
+            </TabsTrigger>
+            <TabsTrigger value="audit" className="data-[state=active]:bg-purple-600 data-[state=active]:text-foreground">
+              <Shield className="h-4 w-4 mr-2" />
+              Audit Trail
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Access Logs Tab */}
+          <TabsContent value="access" className="space-y-6">
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-foreground">Member Access Logs</CardTitle>
+                  <div className="flex gap-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search logs..."
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        className="pl-10 "
+                      />
+                    </div>
+                    <Button variant="outline" size="sm" className="">
+                      <Filter className="h-4 w-4 mr-2" />
+                      Filter
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="text-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" />
+                    <p className="text-muted-foreground">Loading logs...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {filteredAccessLogs.length === 0 ? (
+                      <div className="text-center py-12">
+                        <Eye className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">No access logs found</p>
+                      </div>
+                    ) : (
+                      filteredAccessLogs.map(log => (
+                        <Card key={log.id} className="bg-muted/50 border-border">
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Badge variant="outline" className="border-purple-600 text-purple-300">
+                                    {log.access_type}
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    {new Date(log.created_at).toLocaleString()}
+                                  </span>
+                                </div>
+                                {log.reason && (
+                                  <p className="text-sm text-muted-foreground mb-1">{log.reason}</p>
+                                )}
+                                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                  <span className="flex items-center gap-1">
+                                    <User className="h-3 w-3" />
+                                    Member: {log.member_id}
+                                  </span>
+                                  {log.super_admin_id && (
+                                    <span className="flex items-center gap-1">
+                                      <Shield className="h-3 w-3" />
+                                      Admin: {log.super_admin_id}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* System Logs Tab */}
+          <TabsContent value="system" className="space-y-6">
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-foreground">System Activity Logs</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {systemLogs.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Activity className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">No system logs found</p>
+                    </div>
+                  ) : (
+                    systemLogs.map(log => (
+                      <Card key={log.id} className={`border-0 ${
+                        log.log_level === "ERROR" ? "bg-red-900/30" :
+                        log.log_level === "WARNING" ? "bg-yellow-900/30" :
+                        "bg-muted/50"
+                      }`}>
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant={log.log_level === "ERROR" ? "destructive" : "secondary"}>
+                                  {log.log_level}
+                                </Badge>
+                                <span className="font-medium text-foreground text-sm">{log.component}</span>
+                              </div>
+                              <p className="text-sm text-muted-foreground mb-1">{log.message}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(log.created_at).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Audit Trail Tab */}
+          <TabsContent value="audit" className="space-y-6">
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-foreground">Complete Audit Trail</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {auditLogs.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Shield className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">No audit entries found</p>
+                    </div>
+                  ) : (
+                    auditLogs.map(log => (
+                      <Card key={log.id} className="bg-muted/50 border-border">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant="outline" className="border-blue-600 text-blue-300">
+                                  Audit Entry
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(log.created_at).toLocaleString()}
+                                </span>
+                              </div>
+                              <p className="text-sm text-muted-foreground">Audit log entry #{log.id}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+}
